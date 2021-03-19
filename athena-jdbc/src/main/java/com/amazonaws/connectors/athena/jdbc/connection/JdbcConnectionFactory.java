@@ -39,6 +39,7 @@ public interface JdbcConnectionFactory
      */
     enum DatabaseEngine
     {
+        KDB("kdb"),
         MYSQL("mysql"),
         POSTGRES("postgres"),
         REDSHIFT("redshift");

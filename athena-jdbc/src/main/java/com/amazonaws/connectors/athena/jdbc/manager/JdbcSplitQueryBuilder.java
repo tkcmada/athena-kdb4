@@ -114,7 +114,7 @@ public abstract class JdbcSplitQueryBuilder
         clauses.addAll(getPartitionWhereClauses(split));
         if (!clauses.isEmpty()) {
             sql.append(" WHERE ")
-                    .append(Joiner.on(" AND ").join(clauses));
+                    .append(Joiner.on(" , ").join(clauses));
         }
 
         LOGGER.info("Generated SQL : {}", sql.toString());
@@ -123,7 +123,6 @@ public abstract class JdbcSplitQueryBuilder
         // TODO all types, converts Arrow values to JDBC.
         for (int i = 0; i < accumulator.size(); i++) {
             TypeAndValue typeAndValue = accumulator.get(i);
-
             Types.MinorType minorTypeForArrowType = Types.getMinorTypeForArrowType(typeAndValue.getType());
 
             switch (minorTypeForArrowType) {
@@ -177,12 +176,17 @@ public abstract class JdbcSplitQueryBuilder
 
     protected abstract List<String> getPartitionWhereClauses(final Split split);
 
-    private List<String> toConjuncts(List<Field> columns, Constraints constraints, List<TypeAndValue> accumulator, Map<String, String> partitionSplit)
+    protected List<String> toConjuncts(List<Field> columns, Constraints constraints, List<TypeAndValue> accumulator, Map<String, String> partitionSplit)
     {
         List<String> conjuncts = new ArrayList<>();
         for (Field column : columns) {
             if (partitionSplit.containsKey(column.getName())) {
                 continue; // Ignore constraints on partition name as RDBMS does not contain these as columns. Presto will filter these values.
+            }
+            if (column.getName().equals("str"))
+            {
+                LOGGER.info("list of char column is excluded from where caluse");
+                continue;
             }
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
@@ -195,7 +199,7 @@ public abstract class JdbcSplitQueryBuilder
         return conjuncts;
     }
 
-    private String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<TypeAndValue> accumulator)
+    protected String toPredicate(String columnName, ValueSet valueSet, ArrowType type, List<TypeAndValue> accumulator)
     {
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
@@ -285,23 +289,23 @@ public abstract class JdbcSplitQueryBuilder
         return quoteCharacters + name + quoteCharacters;
     }
 
-    private static class TypeAndValue
+    protected static class TypeAndValue
     {
         private final ArrowType type;
         private final Object value;
 
-        TypeAndValue(ArrowType type, Object value)
+        public TypeAndValue(ArrowType type, Object value)
         {
             this.type = Validate.notNull(type, "type is null");
             this.value = Validate.notNull(value, "value is null");
         }
 
-        ArrowType getType()
+        public ArrowType getType()
         {
             return type;
         }
 
-        Object getValue()
+        public Object getValue()
         {
             return value;
         }

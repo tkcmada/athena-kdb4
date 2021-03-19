@@ -16,6 +16,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.kx</groupId>
+            <artifactId>jdbc</artifactId>
+            <version>0.1</version>
+        </dependency>
+        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
             <version>2021.6.1</version>
@@ -95,6 +100,21 @@
 
     <build>
         <plugins>
+            <!-- added for dependency:go-offline -->
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.7.0</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.0.2</version>
+            </plugin>
+            <!-- end of added -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

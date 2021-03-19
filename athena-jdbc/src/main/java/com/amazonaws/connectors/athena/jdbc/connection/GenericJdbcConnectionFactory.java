@@ -47,6 +47,9 @@ public class GenericJdbcConnectionFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericJdbcConnectionFactory.class);
 
+    private static final String KDB_DRIVER_CLASS = "jdbc";
+    private static final int KDB_DEFAULT_PORT = 5001;
+
     private static final String MYSQL_DRIVER_CLASS = "com.mysql.cj.jdbc.Driver";
     private static final int MYSQL_DEFAULT_PORT = 3306;
 
@@ -60,6 +63,7 @@ public class GenericJdbcConnectionFactory
     public static final Pattern SECRET_NAME_PATTERN = Pattern.compile(SECRET_NAME_PATTERN_STRING);
 
     private static final ImmutableMap<DatabaseEngine, DatabaseConnectionInfo> CONNECTION_INFO = ImmutableMap.of(
+            DatabaseEngine.KDB, new DatabaseConnectionInfo(KDB_DRIVER_CLASS, KDB_DEFAULT_PORT),
             DatabaseEngine.MYSQL, new DatabaseConnectionInfo(MYSQL_DRIVER_CLASS, MYSQL_DEFAULT_PORT),
             DatabaseEngine.POSTGRES, new DatabaseConnectionInfo(POSTGRESQL_DRIVER_CLASS, POSTGRESQL_DEFAULT_PORT),
             DatabaseEngine.REDSHIFT, new DatabaseConnectionInfo(REDSHIFT_DRIVER_CLASS, REDSHIFT_DEFAULT_PORT));
@@ -87,7 +91,7 @@ public class GenericJdbcConnectionFactory
         try {
             DatabaseConnectionInfo databaseConnectionInfo = CONNECTION_INFO.get(this.databaseConnectionConfig.getType());
 
-            final String derivedJdbcString;
+            String derivedJdbcString;
             if (jdbcCredentialProvider != null) {
                 Matcher secretMatcher = SECRET_NAME_PATTERN.matcher(databaseConnectionConfig.getJdbcConnectionString());
                 final String secretReplacement = String.format("user=%s&password=%s", jdbcCredentialProvider.getCredential().getUser(),
@@ -100,12 +104,43 @@ public class GenericJdbcConnectionFactory
 
             // register driver
             Class.forName(databaseConnectionInfo.getDriverClassName()).newInstance();
+            
+            LOGGER.info("getConnection " + derivedJdbcString);
+            LOGGER.info("jdbcProperties=" + (jdbcProperties == null ? "null" : jdbcProperties.toString()));
 
-            // create connection
-            return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+            LOGGER.info("debug v2");
+            //kdb only
+            if(databaseConnectionConfig.getType() == DatabaseEngine.KDB) {
+                int p = derivedJdbcString.indexOf("?");
+                String user = "";
+                String password  = "";
+                if(p > 0) {
+                    String propstr = derivedJdbcString.substring(p + 1);
+                    derivedJdbcString = derivedJdbcString.substring(0, p);
+                    LOGGER.info("property string:" + propstr);
+                    for(String namevalstr : propstr.split("&", 2)) {
+                        String[] nameval = namevalstr.split("=", 2);
+                        String name = nameval[0];
+                        String val = nameval.length > 1 ? nameval[1] : null;
+                        jdbcProperties.put(name, val);
+                        if(name.equals("user")) user = val;
+                        else if(name.equals("password")) password = val;
+                    }
+                    LOGGER.info("new getConnection " + derivedJdbcString);
+                    LOGGER.info("new jdbcProperties=" + (jdbcProperties == null ? "null" : jdbcProperties.toString()));
+                    Class.forName(databaseConnectionInfo.getDriverClassName());
+                }
+                LOGGER.info("connectionString=" + String.valueOf(derivedJdbcString) + " , user=" + String.valueOf(user) + ", password=" + String.valueOf(password));
+                return DriverManager.getConnection(derivedJdbcString, user, password);
+            }
+            else
+            {
+                // create connection
+                return DriverManager.getConnection(derivedJdbcString, this.jdbcProperties);
+            }
         }
         catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException);
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException, sqlException);
         }
         catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
             throw new RuntimeException(ex);

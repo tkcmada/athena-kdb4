@@ -38,6 +38,7 @@ import com.amazonaws.athena.connector.lambda.data.writers.extractors.SmallIntExt
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.TinyIntExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarBinaryExtractor;
 import com.amazonaws.athena.connector.lambda.data.writers.extractors.VarCharExtractor;
+
 import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriter;
 import com.amazonaws.athena.connector.lambda.data.writers.fieldwriters.FieldWriterFactory;
 import com.amazonaws.athena.connector.lambda.data.writers.holders.NullableDecimalHolder;
@@ -56,6 +57,8 @@ import com.amazonaws.connectors.athena.jdbc.connection.RdsSecretsCredentialProvi
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
@@ -92,9 +95,9 @@ import java.util.concurrent.TimeUnit;
 public abstract class JdbcRecordHandler
         extends RecordHandler
 {
-    public static final org.joda.time.MutableDateTime EPOCH = new org.joda.time.MutableDateTime();
+    public static final org.joda.time.MutableDateTime EPOCH = new org.joda.time.MutableDateTime(1970, 1, 1, 0, 0, 0, 0); //1970-01-01 00:00:00.000
     private static final Logger LOGGER = LoggerFactory.getLogger(JdbcRecordHandler.class);
-    private final JdbcConnectionFactory jdbcConnectionFactory;
+    protected final JdbcConnectionFactory jdbcConnectionFactory;
     private final DatabaseConnectionConfig databaseConnectionConfig;
 
     /**
@@ -115,7 +118,7 @@ public abstract class JdbcRecordHandler
         this.databaseConnectionConfig = Validate.notNull(databaseConnectionConfig, "databaseConnectionConfig must not be null");
     }
 
-    private JdbcCredentialProvider getCredentialProvider()
+    protected JdbcCredentialProvider getCredentialProvider()
     {
         final String secretName = this.databaseConnectionConfig.getSecret();
         if (StringUtils.isNotBlank(secretName)) {
@@ -124,11 +127,19 @@ public abstract class JdbcRecordHandler
 
         return null;
     }
+    
+    public static class SkipQueryException extends RuntimeException
+    {
+        public SkipQueryException(String message)
+        {
+            super(message);
+        }
+    }
 
     @Override
     public void readWithConstraint(BlockSpiller blockSpiller, ReadRecordsRequest readRecordsRequest, QueryStatusChecker queryStatusChecker)
     {
-        LOGGER.info("{}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
+        LOGGER.info("readWithConstraint {}: Catalog: {}, table {}, splits {}", readRecordsRequest.getQueryId(), readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                 readRecordsRequest.getSplit().getProperties());
         try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
@@ -160,6 +171,10 @@ public abstract class JdbcRecordHandler
 
                 connection.commit();
             }
+            catch(SkipQueryException ex)
+            {
+                LOGGER.info("skipping query {}", ex.getMessage());
+            }
         }
         catch (SQLException sqlException) {
             throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
@@ -188,7 +203,8 @@ public abstract class JdbcRecordHandler
     /**
      * Creates an Extractor for the given field. In this example the extractor just creates some random data.
      */
-    private Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
+    @VisibleForTesting
+    public Extractor makeExtractor(Field field, ResultSet resultSet, Map<String, String> partitionValues)
     {
         Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
 
@@ -241,11 +257,7 @@ public abstract class JdbcRecordHandler
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case FLOAT8:
-                return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
-                {
-                    dst.value = resultSet.getDouble(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
-                };
+                return newFloat8Extractor(resultSet, fieldName, field);
             case DECIMAL:
                 return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
@@ -256,7 +268,11 @@ public abstract class JdbcRecordHandler
                 return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
                     if (resultSet.getDate(fieldName) != null) {
-                        dst.value = (int) TimeUnit.MILLISECONDS.toDays(resultSet.getDate(fieldName).getTime());
+                        // dst.value = (int) TimeUnit.MILLISECONDS.toDays(resultSet.getDate(fieldName).getTime());
+                        java.sql.Date date = resultSet.getDate(fieldName);
+                        org.joda.time.DateTime date2 = new org.joda.time.DateTime( ((java.util.Date) date).getTime() );
+                        dst.value = org.joda.time.Days.daysBetween(EPOCH, date2).getDays();
+                        if(LOGGER.isDebugEnabled()) LOGGER.debug("date field value:" + date + " " + date.getClass().getName() + " EPOCH = " + EPOCH + " date2 = " + date2 + " dst.value=" + dst.value);
                     }
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
@@ -269,20 +285,66 @@ public abstract class JdbcRecordHandler
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
             case VARCHAR:
-                return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
-                {
-                    dst.value = resultSet.getString(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
-                };
+                return newVarcharExtractor(resultSet, fieldName, field);
             case VARBINARY:
                 return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
                 {
                     dst.value = resultSet.getBytes(fieldName);
                     dst.isSet = resultSet.wasNull() ? 0 : 1;
                 };
+            case LIST:
+                return null; //this indicates that makeFactory will be called.
+            case STRUCT:
+                return null; //this indicates that makeFactory will be called.
             default:
                 throw new RuntimeException("Unhandled type " + fieldType);
         }
+    }
+
+    /**
+     * Since GeneratedRowWriter doesn't yet support complex types (STRUCT, LIST) we use this to
+     * create our own FieldWriters via customer FieldWriterFactory. In this case we are producing
+     * FieldWriters that only work for our exact example schema. This will be enhanced with a more
+     * generic solution in a future release.
+     */
+    protected FieldWriterFactory makeFactory(Field field, ResultSet resultSet, Map<String, String> partitionValues) {
+        final Types.MinorType fieldType = Types.getMinorTypeForArrowType(field.getType());
+        final String fieldName = field.getName();
+        throw new RuntimeException("Unhandled type " + String.valueOf(fieldType) + " field name " + String.valueOf(fieldName));
+    }
+
+    protected Float8Extractor newFloat8Extractor(final ResultSet resultSet, final String fieldName, final Field field)
+    {
+        return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
+        {
+            dst.value = resultSet.getDouble(fieldName);
+            dst.isSet = resultSet.wasNull() ? 0 : 1;
+        };
+
+    }
+
+    protected VarCharExtractor newVarcharExtractor(final ResultSet resultSet, final String fieldName, final Field field)
+    {
+        return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
+        {
+            Object value = resultSet.getString(fieldName);
+            if(value != null) {
+                dst.value = value.toString();
+            }
+            dst.isSet = resultSet.wasNull() ? 0 : 1;
+        };
+    }
+
+    protected VarCharExtractor newListExtractor(final ResultSet resultSet, final String fieldName, final Field field)
+    {
+        return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
+        {
+            Object value = resultSet.getString(fieldName);
+            if(value != null) {
+                dst.value = value.toString();
+            }
+            dst.isSet = resultSet.wasNull() ? 0 : 1;
+        };
     }
 
     /**

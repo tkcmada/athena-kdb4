@@ -131,11 +131,11 @@ public abstract class JdbcMetadataHandler
             return new ListSchemasResponse(listSchemasRequest.getCatalogName(), listDatabaseNames(connection));
         }
         catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 
-    private Set<String> listDatabaseNames(final Connection jdbcConnection)
+    protected Set<String> listDatabaseNames(final Connection jdbcConnection)
             throws SQLException
     {
         try (ResultSet resultSet = jdbcConnection.getMetaData().getSchemas()) {
@@ -159,11 +159,11 @@ public abstract class JdbcMetadataHandler
             return new ListTablesResponse(listTablesRequest.getCatalogName(), listTables(connection, listTablesRequest.getSchemaName()));
         }
         catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 
-    private List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
+    protected List<TableName> listTables(final Connection jdbcConnection, final String databaseName)
             throws SQLException
     {
         try (ResultSet resultSet = getTables(jdbcConnection, databaseName)) {
@@ -175,7 +175,7 @@ public abstract class JdbcMetadataHandler
         }
     }
 
-    private ResultSet getTables(final Connection connection, final String schemaName)
+    protected ResultSet getTables(final Connection connection, final String schemaName)
             throws SQLException
     {
         DatabaseMetaData metadata = connection.getMetaData();
@@ -187,7 +187,7 @@ public abstract class JdbcMetadataHandler
                 new String[] {"TABLE", "VIEW"});
     }
 
-    private TableName getSchemaTableName(final ResultSet resultSet)
+    protected TableName getSchemaTableName(final ResultSet resultSet)
             throws SQLException
     {
         return new TableName(
@@ -217,11 +217,11 @@ public abstract class JdbcMetadataHandler
                     partitionSchema.getFields().stream().map(Field::getName).collect(Collectors.toSet()));
         }
         catch (SQLException sqlException) {
-            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage());
+            throw new RuntimeException(sqlException.getErrorCode() + ": " + sqlException.getMessage(), sqlException);
         }
     }
 
-    private Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
+    protected Schema getSchema(Connection jdbcConnection, TableName tableName, Schema partitionSchema)
             throws SQLException
     {
         SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
