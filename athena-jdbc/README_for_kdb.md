@@ -60,3 +60,8 @@ How to specify JDBC Connection String ?
 ```
 kdb://jdbc:kdb:<ip>:<port>?user=<user>&password=<password>
 ```
+
+How to install kdb+ JDBC driver to build ?
+```
+mvn install:install-file -DgroupId=com.kx -DartifactId=jdbc -Dversion=0.1 -Dfile=path/to/kdb/c/jdbc.jar -Dpackaging=jar   
+```
