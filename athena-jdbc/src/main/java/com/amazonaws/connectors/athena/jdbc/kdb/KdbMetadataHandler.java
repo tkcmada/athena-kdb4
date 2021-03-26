@@ -635,14 +635,22 @@ public class KdbMetadataHandler
         resolver = resolver_;
     }
     
+    private static String null2emp(String s)
+    {
+        if(s == null)
+            return "";
+        return s.trim();
+    }
+    
     public static List<String> getKdbFunctionList() throws IOException
     {
-        String s3region = System.getenv("AWS_REGION");
-        String s3bucket = System.getenv("funcmap_s3bucket");
-        String s3keys   = System.getenv("funcmap_s3keys");
+        String s3region = null2emp(System.getenv("AWS_REGION"));
+        String s3bucket = null2emp(System.getenv("funcmap_s3bucket"));
+        String s3keys   = null2emp(System.getenv("funcmap_s3keys"));
+        LOGGER.info("funclist region={}, bucket={}, keys={}", s3region, s3bucket, s3keys);
         if(resolver == null)
         {
-            if(s3region == null || s3bucket == null || s3keys == null)
+            if(s3region.isEmpty() || s3bucket.isEmpty() || s3keys.isEmpty())
             {
                 LOGGER.info("no funcmap_s3region/bucket/keys are set.");
                 return null;
