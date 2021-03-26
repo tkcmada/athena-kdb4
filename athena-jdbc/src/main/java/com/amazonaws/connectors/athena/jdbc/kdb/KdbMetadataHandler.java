@@ -642,6 +642,8 @@ public class KdbMetadataHandler
         return s.trim();
     }
     
+    private static final List<String> EMPTY_LIST = ImmutableList.<String>builder().build();
+    
     public static List<String> getKdbFunctionList() throws IOException
     {
         String s3region = null2emp(System.getenv("AWS_REGION"));
@@ -653,7 +655,7 @@ public class KdbMetadataHandler
             if(s3region.isEmpty() || s3bucket.isEmpty() || s3keys.isEmpty())
             {
                 LOGGER.info("no funcmap_s3region/bucket/keys are set.");
-                return null;
+                return EMPTY_LIST;
             }
             resolver = new S3FunctionResolver(s3region, s3bucket, s3keys);
         }
