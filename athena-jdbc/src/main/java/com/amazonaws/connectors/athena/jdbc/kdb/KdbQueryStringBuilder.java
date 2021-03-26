@@ -175,7 +175,13 @@ public class KdbQueryStringBuilder
         String kdbTableName = KdbMetadataHandler.athenaTableNameToKdbTableName(table);
         //push down date criteria
         if (daterange != null) {
-            kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange);
+            final String datepushdown = String.valueOf(KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_DATEPUSHDOWN_KEY)).toLowerCase();
+            LOGGER.info("datepushdown={}", datepushdown);
+            if("true".equals(datepushdown))
+            {
+                LOGGER.info("datepushdown is enabled.");
+                kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange);
+            }
         }
         sql.append(" from " + quote(kdbTableName) + " ");
 

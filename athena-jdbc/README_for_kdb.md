@@ -53,7 +53,7 @@ t5:([] name:`USDJPY`EURUSD; str:("AAA"; "BBB"); liststr:(enlist "CCC"; ("AAA"; "
 t6:([] name_group:`USDJPY`EURUSD )
 
 t7:([] date:(2021.01.10;2021.01.11;2021.01.12;2021.01.13); sym:`USDJPY`USDJPY`USDJPY`USDJPY )
-myfunc:{[date_from;date_to] select from t7 where date within (date_from; date_to) }
+myFunc:{[date_from;date_to] select from t7 where date within (date_from; date_to) }
 ```
 
 How to specify JDBC Connection String ?

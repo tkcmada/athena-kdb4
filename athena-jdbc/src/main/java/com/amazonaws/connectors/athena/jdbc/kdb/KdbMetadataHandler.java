@@ -50,6 +50,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.*;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -81,6 +82,9 @@ public class KdbMetadataHandler
     public static final String KDBTYPE_KEY = "kdbtype";
     public static final String KDBTYPECHAR_KEY = "kdbtypechar";
     public static final String DEFAULT_SCHEMA_NAME = "schema1";
+
+    public static final String SCHEMA_PARALLEL_KEY = "para";
+    public static final String SCHEMA_DATEPUSHDOWN_KEY = "datepushdown";
 
     private static boolean isListMappedToArray = true;
 
@@ -388,15 +392,33 @@ public class KdbMetadataHandler
                 .addField(newField(BLOCK_PARTITION_COLUMN_NAME, Types.MinorType.VARCHAR, KdbTypes.list_of_char_type));
         return schemaBuilder.build();
     }
-
+    
+    private static final Map<String, String> EMPTY_MAP = ImmutableMap.<String, String>builder().build();
+    public static Map<String, String> getProperties(final String schema)
+    {
+        if(! schema.contains("="))
+            return EMPTY_MAP;
+        Map<String, String> props = new HashMap<>();
+        for(String keyval : schema.split("&"))
+        {
+            final String[] a = keyval.split("=", 2);
+            final String key = a[0];
+            final String val = a.length > 1 ? a[1] : "";
+            props.put(key, val);
+        }
+        return props;
+    }
+    
     @Override
     public void getPartitions(final BlockWriter blockWriter, final GetTableLayoutRequest getTableLayoutRequest, QueryStatusChecker queryStatusChecker)
     {
-        LOGGER.info("getPartitions {}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), getTableLayoutRequest.getTableName().getSchemaName(),
+        final String schemaname = getTableLayoutRequest.getTableName().getSchemaName();
+        LOGGER.info("getPartitions {}: Schema {}, table {}", getTableLayoutRequest.getQueryId(), schemaname,
                 getTableLayoutRequest.getTableName().getTableName());
-        LOGGER.info("envvar num_parallel_query={}", System.getenv("num_parallel_query"));
-        int num_parallel_query = 2;
-        try { num_parallel_query = Integer.parseInt(System.getenv("num_parallel_query")); } catch(NumberFormatException ignored) {}
+        String para = String.valueOf(getProperties(schemaname).get(SCHEMA_PARALLEL_KEY));
+        LOGGER.info("para={}", para);
+        int num_parallel_query = 1;
+        try { num_parallel_query = Integer.parseInt(para); } catch(NumberFormatException ignored) {}
         LOGGER.info("num_parallel_query={}",num_parallel_query);
         if(num_parallel_query <= 1) { //single partition
             blockWriter.writeRows((Block block, int rowNum) -> {
@@ -537,6 +559,29 @@ public class KdbMetadataHandler
         String kdbTableName = kdbtbl_by_athenatbl.get(athenaTableName);
         if(kdbTableName != null)
             return kdbTableName;
+        if(athenaTableName.contains("["))
+        {
+            try
+            {
+                final List<String> kdbnames = getKdbFunctionList();
+                for(String kdbname : kdbnames)
+                {
+                    String athenaname = kdbname.toLowerCase();
+                    if(athenaname.length() <= athenaTableName.length() && athenaTableName.substring(0, athenaname.length()).equals(athenaname))
+                    {
+                        if(athenaname.length() == athenaTableName.length())
+                            athenaTableName = kdbname;
+                        else
+                            athenaTableName = kdbname + athenaTableName.substring(athenaname.length());
+                        break;
+                    }
+                }
+            }
+            catch(IOException ex)
+            {
+                LOGGER.warn("cannot get getKdbFunctionList", ex);
+            }
+        }
         //if table mapping doesn't exist, just apply naming rule.
         String s = to_upper_case(athenaTableName, athenaTableNamePattern2.get());
         //return to_upper_case(s, athenaTableNamePattern.get());
@@ -580,5 +625,31 @@ public class KdbMetadataHandler
         // }
         // athenaTableName.append(kdbTableName.substring(p));
         // return athenaTableName.toString();
+    }
+    
+    private static FunctionResolver resolver = null;
+    
+    @VisibleForTesting
+    static void setFunctionResolver(FunctionResolver resolver_)
+    {
+        resolver = resolver_;
+    }
+    
+    public static List<String> getKdbFunctionList() throws IOException
+    {
+        String s3region = System.getenv("AWS_REGION");
+        String s3bucket = System.getenv("funcmap_s3bucket");
+        String s3keys   = System.getenv("funcmap_s3keys");
+        if(resolver == null)
+        {
+            if(s3region == null || s3bucket == null || s3keys == null)
+            {
+                LOGGER.info("no funcmap_s3region/bucket/keys are set.");
+                return null;
+            }
+            resolver = new S3FunctionResolver(s3region, s3bucket, s3keys);
+        }
+        LOGGER.info("use resolver to solve kdb function list.");
+        return resolver.getKdbFunctionList();
     }
 }

@@ -15,11 +15,19 @@
     </properties>
 
     <dependencies>
+        <!-- added -->
         <dependency>
             <groupId>com.kx</groupId>
             <artifactId>jdbc</artifactId>
             <version>0.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-bom</artifactId>
+            <version>1.11.979</version>
+            <type>pom</type>
+        </dependency>
+        <!-- end of added -->
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>

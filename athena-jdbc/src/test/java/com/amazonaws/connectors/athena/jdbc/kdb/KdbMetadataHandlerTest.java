@@ -31,6 +31,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.io.*;
+import java.util.*;
 
 public class KdbMetadataHandlerTest
         extends TestBase
@@ -57,6 +59,16 @@ public class KdbMetadataHandlerTest
         // Mockito.when(this.secretsManager.getSecretValue(Mockito.eq(new GetSecretValueRequest().withSecretId("testSecret")))).thenReturn(new GetSecretValueResult().withSecretString("{\"username\": \"testUser\", \"password\": \"testPassword\"}"));
         // this.mySqlMetadataHandler = new MySqlMetadataHandler(databaseConnectionConfig, this.secretsManager, this.athena, this.jdbcConnectionFactory);
         // this.federatedIdentity = Mockito.mock(FederatedIdentity.class);
+        KdbMetadataHandler.setFunctionResolver(new FunctionResolver()
+        {
+            @Override
+            public List<String> getKdbFunctionList() throws IOException
+            {
+                List<String> names = new ArrayList<>();
+                names.add("hogeFunc");
+                return names;
+            }  
+        });
     }
 
     @Test
@@ -70,6 +82,8 @@ public class KdbMetadataHandlerTest
         Assert.assertEquals("MarketBooks", KdbMetadataHandler.athenaTableNameToKdbTableName("marketbooks"));
         Assert.assertEquals("timezoneTab", KdbMetadataHandler.athenaTableNameToKdbTableName("timezonetab"));
         Assert.assertEquals("OHLC_30m"   , KdbMetadataHandler.athenaTableNameToKdbTableName("ohlc_30m"));
+        //function resolver
+        Assert.assertEquals("hogeFunc[123]"   , KdbMetadataHandler.athenaTableNameToKdbTableName("hogefunc[123]"));
 
         //if mapping doesn't exist, just use naming rule.
         // Assert.assertEquals("`USDJPY;`V1" , KdbMetadataHandler.athenaTableNameToKdbTableName("`__usdjpy__;`_v1"));
@@ -276,5 +290,12 @@ public class KdbMetadataHandlerTest
     //     Assert.assertEquals(expectedSplits.size(), getSplitsResponse.getSplits().size());
     //     Set<Map<String, String>> actualSplits = getSplitsResponse.getSplits().stream().map(Split::getProperties).collect(Collectors.toSet());
     //     Assert.assertEquals(expectedSplits, actualSplits);
+    // }
+
+    // @Test
+    // public void s3_funcname() throws IOException
+    // {
+    //     S3FunctionResolver s3 = new S3FunctionResolver(com.amazonaws.regions.Regions.US_EAST_1, "shimada-tmp", "funcmap.txt");
+    //     Assert.assertEquals("[myFunc]", s3.getKdbFunctionList().toString());
     // }
 }

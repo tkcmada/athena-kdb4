@@ -48,10 +48,14 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
-  NumOfParallelQuery:
-    Description: 'Specified number of query will be executed in parallel'
-    Default: 1
-    Type: Number
+  KdbFuncListS3Bucket:
+    Description: '(Optional) Specify S3 bucket of kdb function list file.'
+    Default: ''
+    Type: String
+  KdbFuncListS3Keys:
+    Description: '(Optional) Specify S3 keys(comma separated keys) of kdb function list file. i.e. path/to/file1.txt,path/to/file2.txt'
+    Default: ''
+    Type: String
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -62,7 +66,8 @@ Resources:
           spill_bucket: !Ref SpillBucket
           spill_prefix: !Ref SpillPrefix
           default: !Ref DefaultConnectionString
-          num_parallel_query: !Ref NumOfParallelQuery
+          funcmap_s3bucket: !Ref KdbFuncListS3Bucket
+          funcmap_s3keys: !Ref KdbFuncListS3Keys
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-1.0.jar"
@@ -71,6 +76,12 @@ Resources:
       Timeout: !Ref LambdaTimeout
       MemorySize: !Ref LambdaMemory
       Policies:
+        - Statement:
+            - Action:
+                - s3:GetObject
+              Effect: Allow
+              Resource: !Sub 'arn:aws:s3:::${KdbFuncListS3Bucket}/*'
+          Version: '2012-10-17'
         - Statement:
             - Action:
                 - secretsmanager:GetSecretValue

@@ -1,5 +1,6 @@
 import java.sql.*;
 import java.util.*;
+import java.lang.reflect.*;
 
 public class TestKdbJdbc {
 	public static void main(String[] args) throws Exception {
@@ -7,7 +8,7 @@ public class TestKdbJdbc {
 		Connection h = DriverManager.getConnection("jdbc:q:127.0.0.1:5001", "", "");
 		System.out.println("connected. v1");
 		Statement stmt = h.createStatement();
-		ResultSet rs = stmt.executeQuery("select * from t6");
+		ResultSet rs = stmt.executeQuery("select from t6");
 		while(rs.next()) {
 			System.out.println("---");
 			Object obj = rs.getObject(1);
