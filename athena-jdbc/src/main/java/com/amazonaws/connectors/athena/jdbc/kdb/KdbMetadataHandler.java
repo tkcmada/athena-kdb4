@@ -55,6 +55,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -125,15 +126,21 @@ public class KdbMetadataHandler
         return schemaNames.build();
     }
 
-    private void cacheSchema(final Connection jdbcConnection) throws SQLException {
+    public static void cacheSchema(final Connection jdbcConnection) throws SQLException {
         if(! kdbtbl_by_athenatbl.isEmpty())
             return;
         LOGGER.info("schema is not cached yet. caching...");
-        listTables(jdbcConnection, null);
+        listTables(jdbcConnection);
     }
 
     @Override
     protected List<TableName> listTables(final Connection jdbcConnection, final String not_used_databaseName)
+            throws SQLException
+    {
+        return listTables(jdbcConnection);
+    }
+
+    private static List<TableName> listTables(final Connection jdbcConnection)
             throws SQLException
     {
         LOGGER.info("listTables...");
@@ -143,7 +150,7 @@ public class KdbMetadataHandler
                 ImmutableList.Builder<TableName> list = ImmutableList.builder();
                 while (resultSet.next()) {
                     LOGGER.info(String.format("list table:%s %s", resultSet.getObject("TABLE_SCHEM"), resultSet.getObject("TABLE_NAME")));
-                    list.add(getSchemaTableName(resultSet));
+                    list.add(_getSchemaTableName(resultSet));
                 }
                 return list.build();
             }
@@ -152,6 +159,12 @@ public class KdbMetadataHandler
 
     @Override
     protected TableName getSchemaTableName(final ResultSet resultSet)
+            throws SQLException
+    {
+        return _getSchemaTableName(resultSet);
+    }
+
+    private static TableName _getSchemaTableName(final ResultSet resultSet)
             throws SQLException
     {
         return new TableName(
@@ -649,7 +662,7 @@ public class KdbMetadataHandler
     {
         if(funcListCache.isEmpty())
         {
-            LOGGER.info("function list is already cached.")
+            LOGGER.info("function list is already cached.");
             return funcListCache;
         }
         String s3region = null2emp(System.getenv("AWS_REGION"));

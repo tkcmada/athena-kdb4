@@ -24,6 +24,7 @@ import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -133,8 +134,12 @@ public class GenericJdbcConnectionFactory
                 LOGGER.info("connectionString=" + String.valueOf(derivedJdbcString) + " , user=" + String.valueOf(user) + ", password=" + String.valueOf(password));
                 Connection conn = DriverManager.getConnection(derivedJdbcString, user, password);
                 LOGGER.info("connected. caching schema and function list.");
-                KdbMetadataHandler.cacheSchema(conn); //cache
-                KdbMetadataHandler.getKdbFunctionList(); //cache
+                com.amazonaws.connectors.athena.jdbc.kdb.KdbMetadataHandler.cacheSchema(conn); //cache
+                try {
+                    com.amazonaws.connectors.athena.jdbc.kdb.KdbMetadataHandler.getKdbFunctionList(); //cache
+                } catch(IOException ex) {
+                    throw new SQLException("error on caching function list", ex);
+                }
                 return conn;
             }
             else
