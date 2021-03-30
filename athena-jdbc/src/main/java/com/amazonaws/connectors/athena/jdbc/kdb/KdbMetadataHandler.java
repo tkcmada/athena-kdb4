@@ -660,7 +660,7 @@ public class KdbMetadataHandler
     
     public static List<String> getKdbFunctionList() throws IOException
     {
-        if(funcListCache.isEmpty())
+        if(! funcListCache.isEmpty())
         {
             LOGGER.info("function list is already cached.");
             return funcListCache;
