@@ -643,9 +643,15 @@ public class KdbMetadataHandler
     }
     
     private static final List<String> EMPTY_LIST = ImmutableList.<String>builder().build();
+    private static final List<String> funcListCache = new ArrayList<>();
     
     public static List<String> getKdbFunctionList() throws IOException
     {
+        if(funcListCache.isEmpty())
+        {
+            LOGGER.info("function list is already cached.")
+            return funcListCache;
+        }
         String s3region = null2emp(System.getenv("AWS_REGION"));
         String s3bucket = null2emp(System.getenv("funcmap_s3bucket"));
         String s3keys   = null2emp(System.getenv("funcmap_s3keys"));
@@ -660,6 +666,7 @@ public class KdbMetadataHandler
             resolver = new S3FunctionResolver(s3region, s3bucket, s3keys);
         }
         LOGGER.info("use resolver to solve kdb function list.");
-        return resolver.getKdbFunctionList();
+        funcListCache.addAll(resolver.getKdbFunctionList());
+        return funcListCache;
     }
 }

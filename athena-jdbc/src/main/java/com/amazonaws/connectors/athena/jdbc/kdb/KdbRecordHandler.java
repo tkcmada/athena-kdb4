@@ -135,12 +135,12 @@ LOGGER.info("pstmt:" + String.valueOf(preparedStatement));
                 final float f = resultSet.getFloat(fieldName);
                 dst.value = Double.parseDouble("" + f); //do not just cast from float to double as it would contain fraction
                 dst.isSet = resultSet.wasNull() ? 0 : 1;
-                LOGGER.info("Float8Extractor(float) " + String.valueOf(fieldName) + " " + dst.value + " float value=" + f);
+                // LOGGER.info("Float8Extractor(float) " + String.valueOf(fieldName) + " " + dst.value + " float value=" + f);
             }
             else {
                 dst.value = resultSet.getDouble(fieldName);
                 dst.isSet = resultSet.wasNull() ? 0 : 1;
-                LOGGER.info("Float8Extractor(double) " + String.valueOf(fieldName) + " " + dst.value + " double value=" + resultSet.getDouble(fieldName));
+                // LOGGER.info("Float8Extractor(double) " + String.valueOf(fieldName) + " " + dst.value + " double value=" + resultSet.getDouble(fieldName));
             }
         };
     }

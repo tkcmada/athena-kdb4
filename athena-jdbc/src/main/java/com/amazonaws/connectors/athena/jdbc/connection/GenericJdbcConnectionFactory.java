@@ -108,7 +108,7 @@ public class GenericJdbcConnectionFactory
             LOGGER.info("getConnection " + derivedJdbcString);
             LOGGER.info("jdbcProperties=" + (jdbcProperties == null ? "null" : jdbcProperties.toString()));
 
-            LOGGER.info("debug v2");
+            LOGGER.info("debug 2021.03.30.1");
             //kdb only
             if(databaseConnectionConfig.getType() == DatabaseEngine.KDB) {
                 int p = derivedJdbcString.indexOf("?");
@@ -131,7 +131,11 @@ public class GenericJdbcConnectionFactory
                     Class.forName(databaseConnectionInfo.getDriverClassName());
                 }
                 LOGGER.info("connectionString=" + String.valueOf(derivedJdbcString) + " , user=" + String.valueOf(user) + ", password=" + String.valueOf(password));
-                return DriverManager.getConnection(derivedJdbcString, user, password);
+                Connection conn = DriverManager.getConnection(derivedJdbcString, user, password);
+                LOGGER.info("connected. caching schema and function list.");
+                KdbMetadataHandler.cacheSchema(conn); //cache
+                KdbMetadataHandler.getKdbFunctionList(); //cache
+                return conn;
             }
             else
             {
