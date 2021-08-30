@@ -1,8 +1,8 @@
 How to build in offline mode.
 ```
-cd athena-kdb
+#in root directory of repository
 cp -rp .m2/repository/* ~/.m2/repository/
-cd ../athena-federation-sdk
+cd athena-federation-sdk
 mvn -o -llr clean install -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
 mvn -o -llr clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
@@ -10,7 +10,9 @@ mvn -o -llr clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 
 How to mvn test?
 ```
-mvn test -Dcheckstyle.skip '-Dtest=com.amazonaws.connectors.athena.jdbc.kdb.*'
+mvn test -Dcheckstyle.skip '-Dtest=Kdb*Test' ( this works )
+or
+mvn test -Dcheckstyle.skip '-Dtest=com.amazonaws.connectors.athena.jdbc.kdb.*' ( this doesn't work now )
 ```
 You should ignore any failure/error in packages other than kdb.
 

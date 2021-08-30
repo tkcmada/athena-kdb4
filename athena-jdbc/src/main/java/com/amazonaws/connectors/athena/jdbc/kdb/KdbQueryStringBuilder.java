@@ -37,6 +37,8 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.joda.time.LocalDateTime;
+import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
@@ -260,10 +262,22 @@ public class KdbQueryStringBuilder
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
             return new DateCriteria((Integer)range.getLow().getValue(), (Integer)range.getHigh().getValue());
         }
+        else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY) {
+            //assume upper bound is today
+            int days_today = getDaysOfToday(new LocalDateTime());
+            return new DateCriteria((Integer)range.getLow().getValue(), days_today);
+        }
         else
         {
             return null;
         }
+    }
+
+    static public int getDaysOfToday(final LocalDateTime now)
+    {
+        final int days_today = new Period(EPOCH, now).toStandardDays().getDays();
+        LOGGER.info("current org.joda.time.LocalDateTime is " + now + " today days=" + days_today);
+        return days_today;
     }
     
     static public DateCriteria getDateRangeParallelQuery(DateCriteria daterange, int total_partitions, int partition_idx)

@@ -271,6 +271,14 @@ public class KdbRecordHandlerTest
     }
 
     @Test
+    public void getDaysOfToday()
+    {
+        Assert.assertEquals(0, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-01T14:05:31.789")));
+        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T00:00:00.000")));
+        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T14:05:31.789")));
+    }
+
+    @Test
     public void pushdown()
     {
         Assert.assertEquals("myfunc[1970.01.01;1970.01.01]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(0, 0)));
