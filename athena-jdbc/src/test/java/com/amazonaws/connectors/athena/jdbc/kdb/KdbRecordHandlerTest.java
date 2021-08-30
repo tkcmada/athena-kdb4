@@ -269,23 +269,7 @@ public class KdbRecordHandlerTest
         this.recordHandler.newVarcharExtractor(rs, "str", KdbMetadataHandler.newField("str", Types.MinorType.VARCHAR, KdbTypes.list_of_byte_type)).extract(null, dst);
         Assert.assertEquals("0x0001", dst.value);
     }
-
-    @Test
-    public void getDaysOfToday()
-    {
-        Assert.assertEquals(0, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-01T14:05:31.789")));
-        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T00:00:00.000")));
-        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T14:05:31.789")));
-        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("2011-08-30T14:20:00.000")));
-    }
-
-    @Test
-    public void pushdown()
-    {
-        Assert.assertEquals("myfunc[1970.01.01;1970.01.01]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(0, 0)));
-        Assert.assertEquals("myfunc[1970.01.02;1970.01.03]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(1, 2)));
-    }
-
+    
     @Test
     public void buildSplitSql_parallel_query()
             throws SQLException

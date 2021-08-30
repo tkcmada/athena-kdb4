@@ -23,6 +23,9 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDateTime;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -76,7 +79,27 @@ public class KdbQueryStringBuilderTest
         Assert.assertEquals("2020.01.02D03:04:05.001000000",
             KdbQueryStringBuilder.toLiteral(new Timestamp(2020 - 1900, 0, 2, 3, 4, 5, 1000000), MinorType.VARCHAR, KdbTypes.timestamp_type));
     }
-    
+
+    @Test
+    public void getDaysOfToday()
+    {
+        Assert.assertEquals(0, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-01T14:05:31.789")));
+        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T00:00:00.000")));
+        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T14:05:31.789")));
+        Assert.assertEquals(18869, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("2021-08-30T14:20:00.000")));
+        // The following case is passed when it's executed at 2011-08-30T14:57:00.000+09:00
+        // Assert.assertEquals(18869, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime(DateTimeZone.forID("Asia/Tokyo"))));
+        
+    }
+
+    @Test
+    public void pushdown()
+    {
+        Assert.assertEquals("myfunc[1970.01.01;1970.01.01]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(0, 0)));
+        Assert.assertEquals("myfunc[1970.01.02;1970.01.03]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(1, 2)));
+        Assert.assertEquals("myfunc[2021.08.30;2021.08.30]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(18869, 18869)));
+    }
+
     @Test
     public void getDateRangeParallelQuery()
     {

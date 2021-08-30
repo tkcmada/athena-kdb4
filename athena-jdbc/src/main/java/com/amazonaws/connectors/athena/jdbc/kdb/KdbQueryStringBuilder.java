@@ -37,6 +37,9 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Days;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
@@ -264,7 +267,7 @@ public class KdbQueryStringBuilder
         }
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY) {
             //assume upper bound is today
-            int days_today = getDaysOfToday(new LocalDateTime());
+            int days_today = getDaysOfToday(new LocalDateTime(DateTimeZone.forID("Asia/Tokyo")));
             return new DateCriteria((Integer)range.getLow().getValue(), days_today);
         }
         else
@@ -275,8 +278,8 @@ public class KdbQueryStringBuilder
 
     static public int getDaysOfToday(final LocalDateTime now)
     {
-        final int days_today = new Period(EPOCH, now).getDays();
-        LOGGER.info("current org.joda.time.LocalDateTime is " + now + " today days=" + days_today);
+        final int days_today = Days.daysBetween(EPOCH, now).getDays();
+        LOGGER.info("current LocalDateTime is " + now + " today days=" + days_today);
         return days_today;
     }
     
