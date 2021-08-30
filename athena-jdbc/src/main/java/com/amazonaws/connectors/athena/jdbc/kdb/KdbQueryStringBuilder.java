@@ -234,6 +234,23 @@ public class KdbQueryStringBuilder
         public String toString() {
             return from_day + "(" + getFromDate() + ")-" + to_day + "(" + getToDate() + ")";
         }
+
+        @Override
+        public int hashCode()
+        {
+            return from_day + to_day;
+        }
+
+        @Override
+        public boolean equals(Object other)
+        {
+            if(other == null)
+                return false;
+            if(other.getClass() != getClass())
+                return false;
+            DateCriteria d = (DateCriteria)other;
+            return from_day == d.from_day && to_day == d.to_day;
+        }
     }
 
     static public DateCriteria getDateRange(ValueSet valueSet, String upperdate_yyyymmdd)

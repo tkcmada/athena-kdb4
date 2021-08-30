@@ -386,7 +386,7 @@ public class KdbRecordHandlerTest
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
     }
 
-    static private ValueSet getSingleValueSet(Object value) {
+    static ValueSet getSingleValueSet(Object value) {
         Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range.isSingleValue()).thenReturn(true);
         Mockito.when(range.getLow().getValue()).thenReturn(value);
@@ -403,13 +403,24 @@ public class KdbRecordHandlerTest
         return valueSet;
     }
 
-    static private ValueSet getRangeSet(Marker.Bound lowerBound, Object lowerValue, Marker.Bound upperBound, Object upperValue) {
+    static ValueSet getRangeSet(Marker.Bound lowerBound, Object lowerValue, Marker.Bound upperBound, Object upperValue) {
         Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(range.isSingleValue()).thenReturn(false);
         Mockito.when(range.getLow().getBound()).thenReturn(lowerBound);
         Mockito.when(range.getLow().getValue()).thenReturn(lowerValue);
         Mockito.when(range.getHigh().getBound()).thenReturn(upperBound);
         Mockito.when(range.getHigh().getValue()).thenReturn(upperValue);
+        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        return valueSet;
+    }
+
+    static ValueSet getRangeSetLowerOnly(Marker.Bound lowerBound, Object lowerValue) {
+        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(range.isSingleValue()).thenReturn(false);
+        Mockito.when(range.getLow().getBound()).thenReturn(lowerBound);
+        Mockito.when(range.getLow().getValue()).thenReturn(lowerValue);
+        Mockito.when(range.getHigh().isUpperUnbounded()).thenReturn(true);
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;

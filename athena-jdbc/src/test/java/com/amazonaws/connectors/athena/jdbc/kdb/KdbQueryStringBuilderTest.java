@@ -33,6 +33,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcRecordHandler.SkipQueryException;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 import com.amazonaws.connectors.athena.jdbc.kdb.KdbQueryStringBuilder.DateCriteria;
 
 public class KdbQueryStringBuilderTest
@@ -133,5 +135,18 @@ public class KdbQueryStringBuilderTest
         catch(SkipQueryException expected) {}
         Assert.assertEquals("0(1970.01.01)-0(1970.01.01)", KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(0, 0), 2, 1).toString());
 
+    }
+
+    @Test
+    public void getDateRange()
+    {
+        Assert.assertEquals(new DateCriteria(0, 0), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getSingleValueSet(0) , ""));
+        Assert.assertEquals(new DateCriteria(1, 1), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getSingleValueSet(1) , ""));
+
+        Assert.assertEquals(new DateCriteria(1, 2), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSet(Marker.Bound.EXACTLY, 1, Marker.Bound.EXACTLY, 2) , "19700105"));
+
+        Assert.assertEquals(new DateCriteria(1, 4), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.EXACTLY, 1) , "19700105"));
+        Assert.assertNull(                          KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.ABOVE  , 1) , "19700105"));
+        Assert.assertNull(                          KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.BELOW  , 1) , "19700105"));
     }
 }
