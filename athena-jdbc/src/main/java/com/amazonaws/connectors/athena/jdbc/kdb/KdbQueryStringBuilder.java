@@ -164,7 +164,9 @@ public class KdbQueryStringBuilder
 
         //push down parition clauses
         final ValueSet date_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("date") : null;
-        DateCriteria daterange = getDateRange(date_valueset);
+        final String upperdate = String.valueOf(KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY));
+        LOGGER.info("upperdate={}", upperdate);
+        DateCriteria daterange = getDateRange(date_valueset, upperdate);
         if(daterange == null)
         {
             if(partition_idx != 0)
@@ -234,9 +236,9 @@ public class KdbQueryStringBuilder
         }
     }
 
-    static public DateCriteria getDateRange(ValueSet valueSet)
+    static public DateCriteria getDateRange(ValueSet valueSet, String upperdate_yyyymmdd)
     {
-        LOGGER.info("getDateRange valueset={}", valueSet);
+        LOGGER.info("getDateRange valueset={}, upperdate_yyyymmdd={}", valueSet, upperdate_yyyymmdd);
         DateCriteria c = null;
 
         if(valueSet == null)
@@ -267,7 +269,12 @@ public class KdbQueryStringBuilder
         }
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY) {
             //assume upper bound is today
-            int days_today = getDaysOfToday(new LocalDateTime(DateTimeZone.forID("Asia/Tokyo")));
+            LocalDateTime today = new LocalDateTime(DateTimeZone.forID("Asia/Tokyo"));
+            if(upperdate_yyyymmdd.trim().length() > 0)
+            {
+                today = DateTimeFormat.forPattern("yyyyMMdd").parseLocalDateTime(upperdate_yyyymmdd);
+            }
+            int days_today = getDaysOfToday(today);
             return new DateCriteria((Integer)range.getLow().getValue(), days_today);
         }
         else

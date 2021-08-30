@@ -26,6 +26,7 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormat;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -83,6 +84,8 @@ public class KdbQueryStringBuilderTest
     @Test
     public void getDaysOfToday()
     {
+        Assert.assertEquals("2021-08-30T00:00:00.000", DateTimeFormat.forPattern("yyyyMMdd").parseLocalDateTime("20210830").toString());
+
         Assert.assertEquals(0, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-01T14:05:31.789")));
         Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T00:00:00.000")));
         Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T14:05:31.789")));
