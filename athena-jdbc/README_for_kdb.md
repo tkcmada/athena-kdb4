@@ -10,9 +10,11 @@ mvn -o -llr clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 
 How to mvn test?
 ```
-mvn test -Dcheckstyle.skip '-Dtest=Kdb*Test' ( this works )
+(this works)
+mvn test -Dcheckstyle.skip '-Dtest=Kdb*Test'
 or
-mvn test -Dcheckstyle.skip '-Dtest=com.amazonaws.connectors.athena.jdbc.kdb.*' ( this doesn't work now )
+(this doesn't work now)
+mvn test -Dcheckstyle.skip '-Dtest=com.amazonaws.connectors.athena.jdbc.kdb.*'
 ```
 You should ignore any failure/error in packages other than kdb.
 

@@ -276,6 +276,7 @@ public class KdbRecordHandlerTest
         Assert.assertEquals(0, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-01T14:05:31.789")));
         Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T00:00:00.000")));
         Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("1970-01-02T14:05:31.789")));
+        Assert.assertEquals(1, KdbQueryStringBuilder.getDaysOfToday(new LocalDateTime("2011-08-30T14:20:00.000")));
     }
 
     @Test

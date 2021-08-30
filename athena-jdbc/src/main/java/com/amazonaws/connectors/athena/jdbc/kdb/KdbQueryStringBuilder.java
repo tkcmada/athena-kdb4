@@ -275,7 +275,7 @@ public class KdbQueryStringBuilder
 
     static public int getDaysOfToday(final LocalDateTime now)
     {
-        final int days_today = new Period(EPOCH, now).toStandardDays().getDays();
+        final int days_today = new Period(EPOCH, now).getDays();
         LOGGER.info("current org.joda.time.LocalDateTime is " + now + " today days=" + days_today);
         return days_today;
     }
