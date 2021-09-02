@@ -203,7 +203,9 @@ public class KdbMetadataHandler
             LOGGER.info("Athena table name:" + athenaTableName);
             final String kdbTableName = athenaTableNameToKdbTableName(athenaTableName);
             LOGGER.info("Kdb table name:" + kdbTableName);
-            final String sql = "q) flip `COLUMN_NAME`COLUMN_TYPE!(cols " + kdbTableName + "; (value meta " + kdbTableName + ")[;`t] )";
+            final String sql = "q) { flip `COLUMN_NAME`COLUMN_TYPE!(cols x; (value meta x)[;`t] ) }[" + kdbTableName + "]";
+            //this may also work
+            //q) { ([] COLUMN_NAME: cols x; COLUMN_TYPE: (value meta x)[`t]) }[ <kdbTableName here> ]
             LOGGER.info("Generated SQL for meta:" + sql);
             try (ResultSet rs = stmt.executeQuery(sql)) {
                 while (rs.next()) {
