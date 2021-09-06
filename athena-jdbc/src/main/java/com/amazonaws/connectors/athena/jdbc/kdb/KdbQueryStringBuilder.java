@@ -175,10 +175,6 @@ public class KdbQueryStringBuilder
             sql.append("null");
         }
 
-        //push down parition clauses
-        final ValueSet date_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("date") : null;
-        // final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("timestamp") : null;
-
         //explicit upperdate
         final String upperdateStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY);
         LOGGER.info("upperdate={}", upperdateStr);
@@ -193,7 +189,15 @@ public class KdbQueryStringBuilder
         }
 
         //getDateRange
+        //push down parition clauses
+        final ValueSet date_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("date") : null;
         DateCriteria daterange = getDateRange(date_valueset, upperdate);
+        if(daterange == null)
+        {
+            //try to find time field then
+            final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("time") : null;
+            daterange = getDateRange(timestamp_valueset, upperdate);
+        }
         if(daterange == null)
         {
             if(partition_idx != 0)
