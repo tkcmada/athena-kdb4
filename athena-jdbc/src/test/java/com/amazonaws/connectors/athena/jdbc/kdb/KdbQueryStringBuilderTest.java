@@ -264,27 +264,27 @@ public class KdbQueryStringBuilderTest
         Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.03]  where (date within (1970.01.02;1970.01.03)) , ((date >= 1970.01.02))", resultSql);
     }
 
-    // @Test
-    // public void buildSql_datepushdown_only_lowerbound_timestamp() throws SQLException
-    // {
-    //     setup();
+    @Test
+    public void buildSql_datepushdown_only_lowerbound_timestamp() throws SQLException
+    {
+        setup();
 
-    //     Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
-    //         .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, "1970.01.02D09:00:00.000000000"))
-    //         .build();
-    //     Mockito.when(constraints.getSummary()).thenReturn(summary);
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, "1970.01.02D09:00:00.000000000"))
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
 
-    //     String resultSql = builder.buildSqlString(
-    //         "lambda:kdb"
-    //         , "datepushdown=true"
-    //         , "func_cfd[2021.01.01;2021.01.01]"
-    //         , schema
-    //         , constraints
-    //         , split
-    //         );
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01]"
+            , schema
+            , constraints
+            , split
+            );
         
-    //     Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05]  where (date within (1970.01.02;1970.01.05)) , ((time >= 1970.01.02D09:00:00.000000000))", resultSql);
-    // }
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05]  where (date within (1970.01.02;1970.01.05)) , ((time >= 1970.01.02D09:00:00.000000000))", resultSql);
+    }
 
 
     @Test

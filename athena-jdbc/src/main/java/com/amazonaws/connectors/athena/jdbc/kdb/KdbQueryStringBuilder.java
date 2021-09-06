@@ -195,8 +195,11 @@ public class KdbQueryStringBuilder
         if(daterange == null)
         {
             //try to find time field then
-            final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("time") : null;
-            daterange = getDateRange(timestamp_valueset, upperdate);
+            String timestampfield = KdbMetadataHandler.getProperties(schema).get("timestampfield");
+            if(timestampfield == null)
+                timestampfield = "time";
+            final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get(timestampfield) : null;
+            daterange = getDateRangeForTimestamp(timestamp_valueset, upperdate);
         }
         if(daterange == null)
         {
