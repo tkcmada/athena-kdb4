@@ -172,7 +172,7 @@ public class KdbQueryStringBuilderTest
             .build());
 
         timemgr = Mockito.mock(TimeManager.class);
-        Mockito.when(timemgr.newLocalDateTime()).thenReturn(LocalDateTime.parse("1970-01-05T08:00:00.000"));
+        Mockito.when(timemgr.newLocalDateTime(DateTimeZone.forID("Asia/Tokyo"))).thenReturn(LocalDateTime.parse("1970-01-05T08:00:00.000"));
 
         constraints = Mockito.mock(Constraints.class);
         Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()

@@ -178,7 +178,10 @@ public class KdbQueryStringBuilder
         //explicit upperdate
         final String upperdateStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY);
         LOGGER.info("upperdate={}", upperdateStr);
-        LocalDateTime upperdate = timemgr.newLocalDateTime();
+        String timezone = KdbMetadataHandler.getProperties(schema).get("timezone");
+        if(timezone == null)
+            timezone = "Asia/Tokyo";
+        LocalDateTime upperdate = timemgr.newLocalDateTime(DateTimeZone.forID(timezone));
         if(upperdateStr != null && ! upperdateStr.trim().isEmpty())
         {
             try {

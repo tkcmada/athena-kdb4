@@ -19,16 +19,12 @@
  */
 package com.amazonaws.connectors.athena.jdbc.kdb;
 
-import org.joda.time.LocalDate;
+import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 
 public interface TimeManager {
     /**
-     * Return current LocalDateTime of Joda. Assuming Asia/Tokyo.
+     * Return current LocalDateTime of Joda.
      */
-    public LocalDateTime newLocalDateTime();
-    /**
-     * Return current LocalDate of Joda. Assuming Asia/Tokyo.
-     */
-    public LocalDate newLocalDate();
+    public LocalDateTime newLocalDateTime(DateTimeZone zone);
 }

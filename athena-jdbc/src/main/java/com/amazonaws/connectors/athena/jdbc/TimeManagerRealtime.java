@@ -29,16 +29,9 @@ import org.joda.time.LocalDateTime;
 public class TimeManagerRealtime implements TimeManager
 {
     @Override
-    public LocalDateTime newLocalDateTime()
+    public LocalDateTime newLocalDateTime(DateTimeZone zone)
     {
-        // Preconditions.checkArgument(zone != null, "zone is null");
-        return new LocalDateTime(DateTimeZone.forID("Asia/Tokyo"));
-    }    
-
-    @Override
-    public LocalDate newLocalDate()
-    {
-        // Preconditions.checkArgument(zone != null, "zone is null");
-        return new LocalDate(DateTimeZone.forID("Asia/Tokyo"));
+        Preconditions.checkArgument(zone != null, "zone is null");
+        return new LocalDateTime(zone);
     }    
 }
