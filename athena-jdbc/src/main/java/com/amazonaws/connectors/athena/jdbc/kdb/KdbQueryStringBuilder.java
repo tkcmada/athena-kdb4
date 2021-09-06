@@ -54,6 +54,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -72,6 +73,7 @@ public class KdbQueryStringBuilder
 {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(KdbQueryStringBuilder.class);
     private static final org.joda.time.LocalDateTime EPOCH = new org.joda.time.LocalDateTime(1970, 1, 1, 0, 0);
+    private static final org.joda.time.LocalDate EPOCH_DATE = new org.joda.time.LocalDate(1970, 1, 1);
     
     //@Nonnull
     private final TimeManager timemgr;
@@ -176,9 +178,22 @@ public class KdbQueryStringBuilder
         //push down parition clauses
         final ValueSet date_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("date") : null;
         // final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("timestamp") : null;
-        final String upperdate = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY);
-        LOGGER.info("upperdate={}", upperdate);
-        DateCriteria daterange = getDateRange(date_valueset, upperdate, timemgr);
+
+        //explicit upperdate
+        final String upperdateStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY);
+        LOGGER.info("upperdate={}", upperdateStr);
+        LocalDateTime upperdate = timemgr.newLocalDateTime();
+        if(upperdateStr != null && ! upperdateStr.trim().isEmpty())
+        {
+            try {
+                upperdate = DateTimeFormat.forPattern("yyyyMMdd").parseLocalDateTime(upperdateStr.trim());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("error occurs during parsing upperdate(expected format is yyyyMMdd):" + upperdateStr, e);
+            }
+        }
+
+        //getDateRange
+        DateCriteria daterange = getDateRange(date_valueset, upperdate);
         if(daterange == null)
         {
             if(partition_idx != 0)
@@ -265,10 +280,9 @@ public class KdbQueryStringBuilder
         }
     }
 
-    static public DateCriteria getDateRange(ValueSet valueSet, String upperdate_yyyymmdd, TimeManager timemgr)
+    static public DateCriteria getDateRange(ValueSet valueSet, /*NotNull*/ LocalDateTime upperdate)
     {
-        LOGGER.info("getDateRange valueset={}, upperdate_yyyymmdd={}", valueSet, upperdate_yyyymmdd);
-        DateCriteria c = null;
+        LOGGER.info("getDateRange valueset={}, upperdate={}", valueSet, upperdate);
 
         if(valueSet == null)
             return null; //no date range criteria
@@ -299,17 +313,7 @@ public class KdbQueryStringBuilder
         }
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && range.getHigh().isUpperUnbounded()) {
             //assume upper bound is today
-            LocalDateTime today = timemgr.newLocalDateTime();
-            if(upperdate_yyyymmdd != null && ! upperdate_yyyymmdd.trim().isEmpty())
-            {
-                LOGGER.info("upperdate_yyyymmdd is {}", upperdate_yyyymmdd);
-                try {
-                    today = DateTimeFormat.forPattern("yyyyMMdd").parseLocalDateTime(upperdate_yyyymmdd.trim());
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("error occurs during parsing upperdate:" + upperdate_yyyymmdd, e);
-                }
-            }
-            int days_today = getDaysOfToday(today);
+            int days_today = getDaysOf(upperdate);
             return new DateCriteria((Integer)range.getLow().getValue(), days_today);
         }
         else
@@ -318,13 +322,70 @@ public class KdbQueryStringBuilder
         }
     }
 
-    static public int getDaysOfToday(final LocalDateTime now)
+    static public DateCriteria getDateRangeForTimestamp(ValueSet valueSet, LocalDateTime upperdate)
+    {
+        LOGGER.info("getDateRangeForTimestamp valueset={}, upperdate={}", valueSet, upperdate);
+
+        if(valueSet == null)
+            return null; //no date range criteria
+            
+        if(valueSet.isNullAllowed())
+            return null; //no date range criteria
+
+        if (! (valueSet instanceof SortedRangeSet))
+            return null; //no date range criteria
+
+        Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
+        LOGGER.info("span={}", rangeSpan);
+        if (rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded())
+            return null;
+        
+        List<Range> ranges = valueSet.getRanges().getOrderedRanges();
+        LOGGER.info("ranges={}", ranges);
+        if(ranges.size() != 1)
+            return null; //multiple range is not supported
+    
+        Range range = ranges.get(0);
+
+        if (range.isSingleValue())
+        {
+            return new DateCriteria(timestampToDateValue((String)range.getLow().getValue()), timestampToDateValue((String)range.getLow().getValue()));
+        }
+        else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
+            return new DateCriteria(timestampToDateValue((String)range.getLow().getValue()), timestampToDateValue((String)range.getHigh().getValue()));
+        }
+        else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && range.getHigh().isUpperUnbounded()) {
+            //assume upper bound is today
+            int days_today = getDaysOf(upperdate);
+            return new DateCriteria(timestampToDateValue((String)range.getLow().getValue()), days_today);
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    static public int timestampToDateValue(final String kdbTimestampLiteral) throws IllegalArgumentException
+    {
+        Preconditions.checkNotNull(kdbTimestampLiteral, "kdbTimestampLiteral is null");
+        if(kdbTimestampLiteral.length() < 10)
+            throw new IllegalArgumentException("Cannot extract date from kdbTimestampLiteral. kdbTimestampLiteral=" + kdbTimestampLiteral);
+        // yyyy.MM.ddD....
+        try {
+            LocalDateTime ldt = DateTimeFormat.forPattern("yyyy.MM.dd").parseLocalDateTime(kdbTimestampLiteral.substring(0, 10));
+            return getDaysOf(ldt);
+        } catch(IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Cannot extract date from kdbTimestampLiteral. kdbTimestampLiteral=" + kdbTimestampLiteral, ex);
+        }
+    }
+
+    static public int getDaysOf(final LocalDateTime now)
     {
         final int days_today = Days.daysBetween(EPOCH, now).getDays();
         LOGGER.info("current LocalDateTime is " + now + " today days=" + days_today);
         return days_today;
     }
-    
+
     static public DateCriteria getDateRangeParallelQuery(DateCriteria daterange, int total_partitions, int partition_idx)
     {
         int days = daterange.to_day - daterange.from_day + 1;

@@ -23,6 +23,7 @@ import com.amazonaws.connectors.athena.jdbc.kdb.TimeManager;
 import com.google.common.base.Preconditions;
 
 import org.joda.time.DateTimeZone;
+import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 
 public class TimeManagerRealtime implements TimeManager
@@ -32,5 +33,12 @@ public class TimeManagerRealtime implements TimeManager
     {
         // Preconditions.checkArgument(zone != null, "zone is null");
         return new LocalDateTime(DateTimeZone.forID("Asia/Tokyo"));
+    }    
+
+    @Override
+    public LocalDate newLocalDate()
+    {
+        // Preconditions.checkArgument(zone != null, "zone is null");
+        return new LocalDate(DateTimeZone.forID("Asia/Tokyo"));
     }    
 }
