@@ -19,9 +19,15 @@
  */
 package com.amazonaws.connectors.athena.jdbc.kdb;
 
+import java.beans.Transient;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Properties;
 
+import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -30,27 +36,22 @@ import org.joda.time.format.DateTimeFormat;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcRecordHandler.SkipQueryException;
+import com.google.common.collect.ImmutableMap;
+import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
+import com.amazonaws.athena.connector.lambda.domain.Split;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
+import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 import com.amazonaws.connectors.athena.jdbc.kdb.KdbQueryStringBuilder.DateCriteria;
 
 public class KdbQueryStringBuilderTest
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(KdbQueryStringBuilderTest.class);
-
-    // private JdbcSplitQueryBuilder jdbcSplitQueryBuilder;
-    // private KdbMetadataHandler metadataHandler;
-
-    @Before
-    public void setup()
-    {
-        // this.metadataHandler = Mockito.mock(KdbMetadataHandler.class);
-        // Mockito.when(metadataHandler.isGUID("g")).thenReturn(true);
-        // this.jdbcSplitQueryBuilder = new KdbQueryStringBuilder(metadataHandler, "`");
-    }
 
     @Test
     public void toLiteral() throws Exception {
@@ -140,13 +141,108 @@ public class KdbQueryStringBuilderTest
     @Test
     public void getDateRange()
     {
-        Assert.assertEquals(new DateCriteria(0, 0), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getSingleValueSet(0) , ""));
-        Assert.assertEquals(new DateCriteria(1, 1), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getSingleValueSet(1) , ""));
+        TimeManager timemgr = Mockito.mock(TimeManager.class);
+        Mockito.when(timemgr.newLocalDateTime()).thenReturn(LocalDateTime.parse("1970-01-05T08:00:00.000"));
+        
+        Assert.assertEquals(new DateCriteria(0, 0), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getSingleValueSet(0) , "", timemgr));
+        Assert.assertEquals(new DateCriteria(1, 1), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getSingleValueSet(1) , "", timemgr));
 
-        Assert.assertEquals(new DateCriteria(1, 2), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSet(Marker.Bound.EXACTLY, 1, Marker.Bound.EXACTLY, 2) , "19700105"));
+        Assert.assertEquals(new DateCriteria(1, 2), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSet(Marker.Bound.EXACTLY, 1, Marker.Bound.EXACTLY, 2) , "19700105", timemgr));
 
-        Assert.assertEquals(new DateCriteria(1, 4), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.EXACTLY, 1) , "19700105"));
-        Assert.assertNull(                          KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.ABOVE  , 1) , "19700105"));
-        Assert.assertNull(                          KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.BELOW  , 1) , "19700105"));
+        Assert.assertEquals(new DateCriteria(1, 4), KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.EXACTLY, 1) , "19700105", timemgr));
+        Assert.assertNull(                          KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.ABOVE  , 1) , "19700105", timemgr));
+        Assert.assertNull(                          KdbQueryStringBuilder.getDateRange(KdbRecordHandlerTest.getRangeSetLowerOnly(Marker.Bound.BELOW  , 1) , "19700105", timemgr));
     }
+
+    private Schema schema;
+    private Split split;
+    private TimeManager timemgr;
+    private Constraints constraints;
+    private KdbQueryStringBuilder builder;
+
+    private void setup()
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        schemaBuilder.addField(KdbMetadataHandler.newField("time", Types.MinorType.VARCHAR, KdbTypes.timestamp_type));
+        schemaBuilder.addField(KdbMetadataHandler.newField("date", Types.MinorType.DATEDAY, KdbTypes.date_type));
+        schema = schemaBuilder.build();
+
+        split = Mockito.mock(Split.class);
+        Mockito.when(split.getProperties()).thenReturn(ImmutableMap.<String,String>builder()
+            .put(KdbMetadataHandler.PARTITION_COLUMN_NAME, "*")
+            .build());
+
+        timemgr = Mockito.mock(TimeManager.class);
+        Mockito.when(timemgr.newLocalDateTime()).thenReturn(LocalDateTime.parse("1970-01-05T08:00:00.000"));
+
+        constraints = Mockito.mock(Constraints.class);
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("date", KdbRecordHandlerTest.getRangeSet(Bound.EXACTLY, 1, Bound.EXACTLY, 2)) // date between 1970.01.02 and 1970.01.03
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+    
+        builder = new KdbQueryStringBuilder("`", timemgr);
+    }
+
+    @Test
+    public void buildSql_datepushdown() throws SQLException
+    {
+        setup();
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.03]  where (date within (1970.01.02;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+    }
+
+    @Test
+    public void buildSql_datepushdown_only_lowerbound() throws SQLException
+    {
+        setup();
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("date", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, 1)) // date >= 1970.01.02
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05]  where (date within (1970.01.02;1970.01.05)) , ((date >= 1970.01.02))", resultSql);
+    }
+
+    @Test
+    public void buildSql_datepushdown_only_lowerbound_with_explicit_upperdate() throws SQLException
+    {
+        setup();
+
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            // .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, "2021.08.26D00:00:00.000000000"))
+            .put("date", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, 1)) // date >= 1970.01.02
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true&upperdate=19700103"
+            , "func_cfd[2021.01.01;2021.01.01]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.03]  where (date within (1970.01.02;1970.01.03)) , ((date >= 1970.01.02))", resultSql);
+    }
+
 }

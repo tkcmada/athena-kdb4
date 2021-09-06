@@ -25,6 +25,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.connectors.athena.jdbc.TimeManagerRealtime;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcSplitQueryBuilder;
 import com.amazonaws.connectors.athena.jdbc.manager.JdbcRecordHandler.SkipQueryException;
 import com.google.common.annotations.VisibleForTesting;
@@ -71,10 +72,20 @@ public class KdbQueryStringBuilder
 {
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(KdbQueryStringBuilder.class);
     private static final org.joda.time.LocalDateTime EPOCH = new org.joda.time.LocalDateTime(1970, 1, 1, 0, 0);
+    
+    //@Nonnull
+    private final TimeManager timemgr;
 
     public KdbQueryStringBuilder(final String quoteCharacters)
     {
+        this(quoteCharacters, new TimeManagerRealtime());
+    }
+
+    KdbQueryStringBuilder(final String quoteCharacters, TimeManager timemgr)
+    {
         super(quoteCharacters);
+        Preconditions.checkArgument(timemgr != null, "timemgr is null");
+        this.timemgr = timemgr;
     }
 
     /**
@@ -137,7 +148,7 @@ public class KdbQueryStringBuilder
             , constraints
             , split
             );
-        final String partition_name = split.getProperty(KdbMetadataHandler.PARTITION_COLUMN_NAME);
+        final String partition_name = split.getProperties().get(KdbMetadataHandler.PARTITION_COLUMN_NAME);
         LOGGER.info("partition_name={}", partition_name);
         int total_partitions = 1;
         int partition_idx = 0;
@@ -164,9 +175,10 @@ public class KdbQueryStringBuilder
 
         //push down parition clauses
         final ValueSet date_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("date") : null;
-        final String upperdate = String.valueOf(KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY));
+        // final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("timestamp") : null;
+        final String upperdate = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY);
         LOGGER.info("upperdate={}", upperdate);
-        DateCriteria daterange = getDateRange(date_valueset, upperdate);
+        DateCriteria daterange = getDateRange(date_valueset, upperdate, timemgr);
         if(daterange == null)
         {
             if(partition_idx != 0)
@@ -253,7 +265,7 @@ public class KdbQueryStringBuilder
         }
     }
 
-    static public DateCriteria getDateRange(ValueSet valueSet, String upperdate_yyyymmdd)
+    static public DateCriteria getDateRange(ValueSet valueSet, String upperdate_yyyymmdd, TimeManager timemgr)
     {
         LOGGER.info("getDateRange valueset={}, upperdate_yyyymmdd={}", valueSet, upperdate_yyyymmdd);
         DateCriteria c = null;
@@ -268,13 +280,14 @@ public class KdbQueryStringBuilder
             return null; //no date range criteria
 
         Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
+        LOGGER.info("span={}", rangeSpan);
         if (rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded())
             return null;
-
+        
         List<Range> ranges = valueSet.getRanges().getOrderedRanges();
         LOGGER.info("ranges={}", ranges);
         if(ranges.size() != 1)
-            return null;
+            return null; //multiple range is not supported
     
         Range range = ranges.get(0);
         if (range.isSingleValue())
@@ -284,12 +297,17 @@ public class KdbQueryStringBuilder
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
             return new DateCriteria((Integer)range.getLow().getValue(), (Integer)range.getHigh().getValue());
         }
-        else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY) {
+        else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && range.getHigh().isUpperUnbounded()) {
             //assume upper bound is today
-            LocalDateTime today = new LocalDateTime(DateTimeZone.forID("Asia/Tokyo"));
-            if(upperdate_yyyymmdd.trim().length() > 0)
+            LocalDateTime today = timemgr.newLocalDateTime();
+            if(upperdate_yyyymmdd != null && ! upperdate_yyyymmdd.trim().isEmpty())
             {
-                today = DateTimeFormat.forPattern("yyyyMMdd").parseLocalDateTime(upperdate_yyyymmdd);
+                LOGGER.info("upperdate_yyyymmdd is {}", upperdate_yyyymmdd);
+                try {
+                    today = DateTimeFormat.forPattern("yyyyMMdd").parseLocalDateTime(upperdate_yyyymmdd.trim());
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("error occurs during parsing upperdate:" + upperdate_yyyymmdd, e);
+                }
             }
             int days_today = getDaysOfToday(today);
             return new DateCriteria((Integer)range.getLow().getValue(), days_today);

@@ -421,6 +421,7 @@ public class KdbRecordHandlerTest
         Mockito.when(range.getLow().getBound()).thenReturn(lowerBound);
         Mockito.when(range.getLow().getValue()).thenReturn(lowerValue);
         Mockito.when(range.getHigh().isUpperUnbounded()).thenReturn(true);
+        Mockito.when(range.getHigh().isNullValue()).thenReturn(true);
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
