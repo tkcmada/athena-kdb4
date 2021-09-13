@@ -213,13 +213,21 @@ public class KdbQueryStringBuilder
             int lowerdateadjust = 0;
             if(lowerdateadjustStr != null)
             {
-                lowerdateadjust = Integer.parseInt(lowerdateadjustStr);
+                try {
+                    lowerdateadjust = Integer.parseInt(lowerdateadjustStr);    
+                } catch (NumberFormatException ignored) {
+                    throw new IllegalArgumentException(KdbMetadataHandler.SCHEMA_LOWERDATEADJUST_KEY + " should be integer format but was " + lowerdateadjustStr);
+                }
             }
             final String upperdateadjustStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATEADJUST_KEY);
             int upperdateadjust = 0;
             if(upperdateadjustStr != null)
             {
-                upperdateadjust = Integer.parseInt(upperdateadjustStr);
+                try {
+                    upperdateadjust = Integer.parseInt(upperdateadjustStr);
+                } catch (NumberFormatException ignored) {
+                    throw new IllegalArgumentException(KdbMetadataHandler.SCHEMA_UPPERDATEADJUST_KEY + " should be integer format but was " + upperdateadjustStr);
+                }
             }
             daterange = new DateCriteria(daterange.from_day + lowerdateadjust, daterange.to_day + upperdateadjust);
         }

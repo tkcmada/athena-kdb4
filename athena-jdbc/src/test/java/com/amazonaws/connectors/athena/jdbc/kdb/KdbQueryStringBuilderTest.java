@@ -265,6 +265,61 @@ public class KdbQueryStringBuilderTest
     }
 
     @Test
+    public void buildSql_datepushdown_with_invalid_upperdateadjust_format() throws SQLException
+    {
+        setup();
+
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("date", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, 1)) // date >= 1970.01.02
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        try 
+        {
+            builder.buildSqlString(
+                "lambda:kdb"
+                , "datepushdown=true&upperdate=19700103&lowerdateadjust=-1&upperdateadjust=abc"
+                , "func_cfd[2021.01.01;2021.01.01]"
+                , schema
+                , constraints
+                , split
+                );
+            Assert.fail();
+        }
+        catch(IllegalArgumentException ex)
+        {
+            Assert.assertEquals("upperdateadjust should be integer format but was abc", ex.getMessage());
+        }
+    }
+
+    public void buildSql_datepushdown_with_invalid_lowerdateadjust_format() throws SQLException
+    {
+        setup();
+
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("date", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, 1)) // date >= 1970.01.02
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        try 
+        {
+            builder.buildSqlString(
+                "lambda:kdb"
+                , "datepushdown=true&upperdate=19700103&lowerdateadjust=xyz&upperdateadjust=1"
+                , "func_cfd[2021.01.01;2021.01.01]"
+                , schema
+                , constraints
+                , split
+                );
+            Assert.fail();
+        }
+        catch(IllegalArgumentException ex)
+        {
+            Assert.assertEquals("lowerdateadjust should be integer format but was xyz", ex.getMessage());
+        }
+    }
+
+    @Test
     public void buildSql_datepushdown_only_lowerbound_timestamp() throws SQLException
     {
         setup();
