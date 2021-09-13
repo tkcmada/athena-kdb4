@@ -380,17 +380,9 @@ public class KdbQueryStringBuilder
     static public int timestampToDateValue(final Object vectorKdbTimestampLiteral) throws IllegalArgumentException
     {
         Preconditions.checkNotNull(vectorKdbTimestampLiteral, "vectorKdbTimestampLiteral is null");
-        String kdbTimestampLiteral;
-        if(vectorKdbTimestampLiteral instanceof org.apache.arrow.vector.util.Text)
-        {
-            kdbTimestampLiteral = new String(((org.apache.arrow.vector.util.Text)vectorKdbTimestampLiteral).getBytes(), StandardCharsets.UTF_8);
-            LOGGER.info("timestampToDateValue vectorKdbTimestampLiteral(org.apache.arrow.vector.util.Text)=" + vectorKdbTimestampLiteral + " kdbTimestampLiteral=" + kdbTimestampLiteral);
-        }
-        else
-        {
-            kdbTimestampLiteral = vectorKdbTimestampLiteral.toString();
-            LOGGER.info("timestampToDateValue vectorKdbTimestampLiteral=" + vectorKdbTimestampLiteral + " toString result is " + kdbTimestampLiteral);
-        }
+        //regardless org.apache.arrow.vector.util.Text instance or not, toString() should be enough to get String.
+        //new String(((org.apache.arrow.vector.util.Text)vectorKdbTimestampLiteral).getBytes(), StandardCharsets.UTF_8) is not required.
+        String kdbTimestampLiteral = vectorKdbTimestampLiteral.toString();
         if(kdbTimestampLiteral.length() < 10)
             throw new IllegalArgumentException("Cannot extract date from kdbTimestampLiteral. kdbTimestampLiteral=" + kdbTimestampLiteral);
         // yyyy.MM.ddD....
