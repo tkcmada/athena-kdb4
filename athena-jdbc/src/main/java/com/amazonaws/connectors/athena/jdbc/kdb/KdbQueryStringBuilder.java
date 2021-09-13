@@ -48,6 +48,8 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -359,15 +361,15 @@ public class KdbQueryStringBuilder
 
         if (range.isSingleValue())
         {
-            return new DateCriteria(timestampToDateValue((String)range.getLow().getValue()), timestampToDateValue((String)range.getLow().getValue()));
+            return new DateCriteria(timestampToDateValue(range.getLow().getValue()), timestampToDateValue(range.getLow().getValue()));
         }
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
-            return new DateCriteria(timestampToDateValue((String)range.getLow().getValue()), timestampToDateValue((String)range.getHigh().getValue()));
+            return new DateCriteria(timestampToDateValue(range.getLow().getValue()), timestampToDateValue(range.getHigh().getValue()));
         }
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && range.getHigh().isUpperUnbounded()) {
             //assume upper bound is today
             int days_today = getDaysOf(upperdate);
-            return new DateCriteria(timestampToDateValue((String)range.getLow().getValue()), days_today);
+            return new DateCriteria(timestampToDateValue(range.getLow().getValue()), days_today);
         }
         else
         {
@@ -375,9 +377,20 @@ public class KdbQueryStringBuilder
         }
     }
 
-    static public int timestampToDateValue(final String kdbTimestampLiteral) throws IllegalArgumentException
+    static public int timestampToDateValue(final Object vectorKdbTimestampLiteral) throws IllegalArgumentException
     {
-        Preconditions.checkNotNull(kdbTimestampLiteral, "kdbTimestampLiteral is null");
+        Preconditions.checkNotNull(vectorKdbTimestampLiteral, "vectorKdbTimestampLiteral is null");
+        String kdbTimestampLiteral;
+        if(vectorKdbTimestampLiteral instanceof org.apache.arrow.vector.util.Text)
+        {
+            kdbTimestampLiteral = new String(((org.apache.arrow.vector.util.Text)vectorKdbTimestampLiteral).getBytes(), StandardCharsets.UTF_8);
+            LOGGER.info("timestampToDateValue vectorKdbTimestampLiteral(org.apache.arrow.vector.util.Text)=" + vectorKdbTimestampLiteral + " kdbTimestampLiteral=" + kdbTimestampLiteral);
+        }
+        else
+        {
+            kdbTimestampLiteral = vectorKdbTimestampLiteral.toString();
+            LOGGER.info("timestampToDateValue vectorKdbTimestampLiteral=" + vectorKdbTimestampLiteral + " toString result is " + kdbTimestampLiteral);
+        }
         if(kdbTimestampLiteral.length() < 10)
             throw new IllegalArgumentException("Cannot extract date from kdbTimestampLiteral. kdbTimestampLiteral=" + kdbTimestampLiteral);
         // yyyy.MM.ddD....

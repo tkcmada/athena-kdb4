@@ -270,7 +270,7 @@ public class KdbQueryStringBuilderTest
         setup();
 
         Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
-            .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, "1970.01.02D09:00:00.000000000"))
+            .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, new org.apache.arrow.vector.util.Text("1970.01.02D09:00:00.000000000")))
             .build();
         Mockito.when(constraints.getSummary()).thenReturn(summary);
 
