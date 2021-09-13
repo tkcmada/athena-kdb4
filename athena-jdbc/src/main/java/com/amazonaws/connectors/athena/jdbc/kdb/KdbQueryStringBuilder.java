@@ -200,12 +200,30 @@ public class KdbQueryStringBuilder
         if(daterange == null)
         {
             //try to find time field then
-            String timestampfield = KdbMetadataHandler.getProperties(schema).get("timestampfield");
+            String timestampfield = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_TIMESTAMPFIELD_KEY);
             if(timestampfield == null)
                 timestampfield = "time";
             final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get(timestampfield) : null;
             daterange = getDateRangeForTimestamp(timestamp_valueset, upperdate);
         }
+        //date range adjustment
+        if(daterange != null)
+        {
+            final String lowerdateadjustStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_LOWERDATEADJUST_KEY);
+            int lowerdateadjust = 0;
+            if(lowerdateadjustStr != null)
+            {
+                lowerdateadjust = Integer.parseInt(lowerdateadjustStr);
+            }
+            final String upperdateadjustStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATEADJUST_KEY);
+            int upperdateadjust = 0;
+            if(upperdateadjustStr != null)
+            {
+                upperdateadjust = Integer.parseInt(upperdateadjustStr);
+            }
+            daterange = new DateCriteria(daterange.from_day + lowerdateadjust, daterange.to_day + upperdateadjust);
+        }
+        //parallel query
         if(daterange == null)
         {
             if(partition_idx != 0)

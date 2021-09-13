@@ -86,7 +86,10 @@ public class KdbMetadataHandler
 
     public static final String SCHEMA_PARALLEL_KEY = "para";
     public static final String SCHEMA_DATEPUSHDOWN_KEY = "datepushdown";
+    public static final String SCHEMA_TIMESTAMPFIELD_KEY = "timestampfield";
     public static final String SCHEMA_UPPERDATE_KEY = "upperdate";
+    public static final String SCHEMA_LOWERDATEADJUST_KEY = "lowerdateadjust";
+    public static final String SCHEMA_UPPERDATEADJUST_KEY = "upperdateadjust";
 
     private static boolean isListMappedToArray = true;
 
