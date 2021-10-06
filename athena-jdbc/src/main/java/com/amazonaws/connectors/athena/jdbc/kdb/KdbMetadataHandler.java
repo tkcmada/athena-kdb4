@@ -77,7 +77,7 @@ public class KdbMetadataHandler
             "AND partition_name IS NOT NULL";
     static final String BLOCK_PARTITION_COLUMN_NAME = "partition_name";
     static final String ALL_PARTITIONS = "*";
-    static final String PARTITION_COLUMN_NAME = "partition_name";
+    public static final String PARTITION_COLUMN_NAME = "partition_name";
     private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(KdbMetadataHandler.class);
     private static final int MAX_SPLITS_PER_REQUEST = 1000_000;
     public static final String KDBTYPE_KEY = "kdbtype";

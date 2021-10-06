@@ -54,6 +54,7 @@ import com.amazonaws.connectors.athena.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.connectors.athena.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.connectors.athena.jdbc.connection.JdbcCredentialProvider;
 import com.amazonaws.connectors.athena.jdbc.connection.RdsSecretsCredentialProvider;
+import com.amazonaws.connectors.athena.jdbc.kdb.KdbMetadataHandler;
 import com.amazonaws.services.athena.AmazonAthena;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
@@ -143,9 +144,14 @@ public abstract class JdbcRecordHandler
                 readRecordsRequest.getSplit().getProperties());
         try (Connection connection = this.jdbcConnectionFactory.getConnection(getCredentialProvider())) {
             connection.setAutoCommit(false); // For consistency. This is needed to be false to enable streaming for some database types.
+            final String parition_name = readRecordsRequest.getSplit().getProperties() == null ? "null split properties" : readRecordsRequest.getSplit().getProperties().get(KdbMetadataHandler.PARTITION_COLUMN_NAME);
+            LOGGER.info("EXECUTE QUERY START:parition_name={}", parition_name);
+            final long startMsec = System.currentTimeMillis();
             try (PreparedStatement preparedStatement = buildSplitSql(connection, readRecordsRequest.getCatalogName(), readRecordsRequest.getTableName(),
                     readRecordsRequest.getSchema(), readRecordsRequest.getConstraints(), readRecordsRequest.getSplit());
                     ResultSet resultSet = preparedStatement.executeQuery()) {
+                final long endMsec = System.currentTimeMillis();
+                LOGGER.info("EXECUTE QUERY END:parition_name={}, elapsedSec={}", parition_name, (endMsec - startMsec) / 1000);
                 Map<String, String> partitionValues = readRecordsRequest.getSplit().getProperties();
 
                 GeneratedRowWriter.RowWriterBuilder rowWriterBuilder = GeneratedRowWriter.newBuilder(readRecordsRequest.getConstraints());
