@@ -660,7 +660,29 @@ public class KdbMetadataHandler
             return "";
         return s.trim();
     }
-    
+
+    public static void declareFunctionsFromS3(Connection conn) throws IOException, SQLException
+    {
+        LOGGER.info("declareFunctionsFromS3...");
+        String s3region = null2emp(System.getenv("AWS_REGION"));
+        String s3bucket = null2emp(System.getenv("funcfile_s3bucket"));
+        String s3keys   = null2emp(System.getenv("funcfile_s3keys"));
+        LOGGER.info("funcfile region={}, bucket={}, keys={}", s3region, s3bucket, s3keys);
+        if(s3region.isEmpty() || s3bucket.isEmpty() || s3keys.isEmpty())
+        {
+            LOGGER.info("no funcfile_s3region/bucket/keys are set.");
+            return;
+        }
+        List<String> lines = S3Utils.getLinesFromS3(s3region, s3bucket, s3keys.split(","));
+        try(Statement stmt = conn.createStatement()) {
+            for(String line : lines) {
+                LOGGER.info("executing..." + line);
+                stmt.execute(line);
+            }
+        }
+        LOGGER.info("declareFunctionsFromS3...done");
+    }
+
     private static final List<String> EMPTY_LIST = ImmutableList.<String>builder().build();
     private static final List<String> funcListCache = new ArrayList<>();
     

@@ -19,7 +19,6 @@
  */
 package com.amazonaws.connectors.athena.jdbc.kdb;
 
-// snippet-start:[s3.java2.getobjectdata.import]
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -33,29 +32,31 @@ import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// snippet-end:[s3.java2.getobjectdata.import]
+public final class S3Utils {
+    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(S3Utils.class);
 
-public class S3FunctionResolver implements FunctionResolver
-{
-    private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(S3FunctionResolver.class);
+    private S3Utils() {}
 
-    private final String region;
-    private final String bucketName;
-    private final String[] keys;
-    
-    
-    public S3FunctionResolver(String region, String bucketName, String keys)
+    public static List<String> getLinesFromS3(String region, String bucketName, String[] keys) throws IOException
     {
-        this.region = region;
-        this.bucketName = bucketName;
-        this.keys = keys.split(",");
-        LOGGER.info("initializing S3FunctionResolver region={}, bucket={}, keys={}", region, this.bucketName, Arrays.toString(this.keys));
-    }
-
-    @Override
-    public List<String> getKdbFunctionList() throws IOException
-    {
-        LOGGER.info("getting function list from S3...");
-        return S3Utils.getLinesFromS3(region, bucketName, keys);
+        AmazonS3 s3 = AmazonS3ClientBuilder.standard()
+                .withRegion(region)
+                .build();
+        List<String> lines = new ArrayList<>();
+        for(String key : keys)
+        {
+            LOGGER.info("bucket={}, key={}", bucketName, key);
+            try(BufferedReader r = new BufferedReader(new InputStreamReader(s3.getObject(bucketName, key).getObjectContent(), "UTF-8"))) //o.getObjectContent() returns S3ObjectInputStream
+            {
+                String line;
+                while((line = r.readLine()) != null)
+                {
+                    if(! line.isEmpty())
+                    lines.add(line);
+                }
+            }
+        }
+        LOGGER.info("got list from S3. lines={}", lines);
+        return lines;
     }
 }

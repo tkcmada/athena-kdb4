@@ -1,13 +1,7 @@
-How to install kdb+ JDBC driver to build ?
-```
-mvn install:install-file -DgroupId=com.kx -DartifactId=jdbc -Dversion=0.1 -Dfile=path/to/kdb/c/jdbc.jar -Dpackaging=jar   
-```
-
 How to build in offline mode.
 ```
 #in root directory of repository
-cp -rp ~/.m2/repository/* .m2/repository/
-( in Gitpod,  cp -rp /workspace/m2-repository/* .m2/repository/  )
+cp -rp .m2/repository/* ~/.m2/repository/
 cd athena-federation-sdk
 mvn -o -llr clean install -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
@@ -65,4 +59,10 @@ myFunc:{[date_from;date_to] select from t7 where date within (date_from; date_to
 How to specify JDBC Connection String ?
 ```
 kdb://jdbc:kdb:<ip>:<port>?user=<user>&password=<password>
+```
+
+How to prepare offline build(only upstream side is required)
+```
+mvn install:install-file -DgroupId=com.kx -DartifactId=jdbc -Dversion=0.1 -Dfile=.m2/repository/com/kx/jdbc/0.1/jdbc-0.1.jar -Dpackaging=jar   
+cp -rp /workspace/m2-repository/* .m2/repository/
 ```

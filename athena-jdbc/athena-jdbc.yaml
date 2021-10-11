@@ -56,6 +56,14 @@ Parameters:
     Description: '(Optional) Specify S3 keys(comma separated keys) of kdb function list file. i.e. path/to/file1.txt,path/to/file2.txt'
     Default: ''
     Type: String
+  KdbFuncDeclareS3Bucket:
+    Description: '(Optional) Specify S3 bucket which contains kdb functions.'
+    Default: ''
+    Type: String
+  KdbFuncDeclareS3Keys:
+    Description: '(Optional) Specify S3 keys(comma separated keys) which contains kdb functions. i.e. path/to/file1.txt,path/to/file2.txt'
+    Default: ''
+    Type: String
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -68,6 +76,8 @@ Resources:
           default: !Ref DefaultConnectionString
           funcmap_s3bucket: !Ref KdbFuncListS3Bucket
           funcmap_s3keys: !Ref KdbFuncListS3Keys
+          funcfile_s3bucket: !Ref KdbFuncDeclareS3Bucket
+          funcfile_s3keys: !Ref KdbFuncDeclareS3Keys
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-1.0.jar"

@@ -109,7 +109,7 @@ public class GenericJdbcConnectionFactory
             LOGGER.info("getConnection " + derivedJdbcString);
             LOGGER.info("jdbcProperties=" + (jdbcProperties == null ? "null" : jdbcProperties.toString()));
 
-            LOGGER.info("connector version 2021.10.06-1");
+            LOGGER.info("connector version 2021.10.11-1");
             //kdb only
             if(databaseConnectionConfig.getType() == DatabaseEngine.KDB) {
                 int p = derivedJdbcString.indexOf("?");
@@ -133,7 +133,13 @@ public class GenericJdbcConnectionFactory
                 }
                 LOGGER.info("connectionString=" + String.valueOf(derivedJdbcString) + " , user=" + String.valueOf(user) + ", password=" + String.valueOf(password));
                 Connection conn = DriverManager.getConnection(derivedJdbcString, user, password);
-                LOGGER.info("connected. caching schema and function list.");
+                LOGGER.info("connected.");
+                try {
+                    com.amazonaws.connectors.athena.jdbc.kdb.KdbMetadataHandler.declareFunctionsFromS3(conn);
+                } catch(IOException ex) {
+                    throw new SQLException("error on declaring functions", ex);
+                }
+                LOGGER.info("caching schema and function list.");
                 com.amazonaws.connectors.athena.jdbc.kdb.KdbMetadataHandler.cacheSchema(conn); //cache
                 try {
                     com.amazonaws.connectors.athena.jdbc.kdb.KdbMetadataHandler.getKdbFunctionList(); //cache
