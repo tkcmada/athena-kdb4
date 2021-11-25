@@ -1,7 +1,8 @@
 How to build in offline mode.
 ```
 #in root directory of repository
-cp -rp .m2/repository/* ~/.m2/repository/
+#cp without overwriting to keep repository size small
+cp -rp –no-clobber .m2/repository/* ~/.m2/repository/
 cd athena-federation-sdk
 mvn -o -llr clean install -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
@@ -62,7 +63,10 @@ kdb://jdbc:kdb:<ip>:<port>?user=<user>&password=<password>
 ```
 
 How to prepare offline build(only upstream side is required)
+or
+If you see error message "Could not resolve dependencies for project com.amazonaws:athena-jdbc:jar:1.0: Could not find artifact com.kx:jdbc:jar:0.1 in redshift (https://s3.amazonaws.com/redshift-maven-repository/release)"
 ```
+#in repository root directory
 mvn install:install-file -DgroupId=com.kx -DartifactId=jdbc -Dversion=0.1 -Dfile=.m2/repository/com/kx/jdbc/0.1/jdbc-0.1.jar -Dpackaging=jar   
 cp -rp /workspace/m2-repository/* .m2/repository/
 ```

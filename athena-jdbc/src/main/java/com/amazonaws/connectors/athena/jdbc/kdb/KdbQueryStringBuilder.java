@@ -33,6 +33,8 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -60,8 +62,12 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -140,7 +146,7 @@ public class KdbQueryStringBuilder
             final String schema,
             final String table,
             final Schema tableSchema,
-            final Constraints constraints,
+            Constraints constraints,
             final Split split)
             throws SQLException
     {   
@@ -161,6 +167,16 @@ public class KdbQueryStringBuilder
             partition_idx = Integer.parseInt(a[0]) - 1;
             total_partitions = Integer.parseInt(a[1]);
         }
+
+        Map<String, String> props = new HashMap<>();
+        props.putAll(KdbMetadataHandler.getProperties(Objects.toString(System.getenv("connector_properties"), "")));
+        LOGGER.info("connector_properties:{}", props);
+        props.putAll(KdbMetadataHandler.getProperties(schema));
+        LOGGER.info("overwritten props:{}", props);
+
+        String datefield = Objects.toString(props.get(KdbMetadataHandler.SCHEMA_DATEFIELD_KEY), "");
+        if(datefield.isEmpty())
+            datefield = "date";
         
         StringBuilder sql = new StringBuilder();
 
@@ -178,9 +194,9 @@ public class KdbQueryStringBuilder
         }
 
         //explicit upperdate
-        final String upperdateStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY);
+        final String upperdateStr = props.get(KdbMetadataHandler.SCHEMA_UPPERDATE_KEY);
         LOGGER.info("upperdate={}", upperdateStr);
-        String timezone = KdbMetadataHandler.getProperties(schema).get("timezone");
+        String timezone = props.get("timezone");
         if(timezone == null)
             timezone = "Asia/Tokyo";
         LocalDateTime upperdate = timemgr.newLocalDateTime(DateTimeZone.forID(timezone));
@@ -195,12 +211,12 @@ public class KdbQueryStringBuilder
 
         //getDateRange
         //push down parition clauses
-        final ValueSet date_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get("date") : null;
+        final ValueSet date_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get(datefield) : null;
         DateCriteria daterange = getDateRange(date_valueset, upperdate);
         if(daterange == null)
         {
             //try to find time field then
-            String timestampfield = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_TIMESTAMPFIELD_KEY);
+            String timestampfield = props.get(KdbMetadataHandler.SCHEMA_TIMESTAMPFIELD_KEY);
             if(timestampfield == null)
                 timestampfield = "time";
             final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get(timestampfield) : null;
@@ -209,7 +225,7 @@ public class KdbQueryStringBuilder
         //date range adjustment
         if(daterange != null)
         {
-            final String lowerdateadjustStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_LOWERDATEADJUST_KEY);
+            final String lowerdateadjustStr = props.get(KdbMetadataHandler.SCHEMA_LOWERDATEADJUST_KEY);
             int lowerdateadjust = 0;
             if(lowerdateadjustStr != null)
             {
@@ -219,7 +235,7 @@ public class KdbQueryStringBuilder
                     throw new IllegalArgumentException(KdbMetadataHandler.SCHEMA_LOWERDATEADJUST_KEY + " should be integer format but was " + lowerdateadjustStr);
                 }
             }
-            final String upperdateadjustStr = KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_UPPERDATEADJUST_KEY);
+            final String upperdateadjustStr = props.get(KdbMetadataHandler.SCHEMA_UPPERDATEADJUST_KEY);
             int upperdateadjust = 0;
             if(upperdateadjustStr != null)
             {
@@ -247,12 +263,26 @@ public class KdbQueryStringBuilder
         String kdbTableName = KdbMetadataHandler.athenaTableNameToKdbTableName(table);
         //push down date criteria
         if (daterange != null) {
-            final String datepushdown = String.valueOf(KdbMetadataHandler.getProperties(schema).get(KdbMetadataHandler.SCHEMA_DATEPUSHDOWN_KEY)).toLowerCase();
+            final String datepushdown = Objects.toString(props.get(KdbMetadataHandler.SCHEMA_DATEPUSHDOWN_KEY), "").toLowerCase();
             LOGGER.info("datepushdown={}", datepushdown);
             if("true".equals(datepushdown))
             {
                 LOGGER.info("datepushdown is enabled.");
+                final String orgKdbTableName = kdbTableName;
                 kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange);
+                if(! kdbTableName.equals(orgKdbTableName))
+                {
+                    final String nowhereondatepushdown = Objects.toString(props.get(KdbMetadataHandler.SCHEMA_NOWHEREONDATEPUSHDOWN_KEY), "").toLowerCase();
+                    LOGGER.info("nowhereondatepushdown={}", nowhereondatepushdown);
+                    if("true".equals(nowhereondatepushdown))
+                    {
+                        LOGGER.info("ignore where clause of date.");
+                        daterange = null; //we don't use daterange information in where clause
+                        Map<String, ValueSet> summary = Maps.newHashMap(constraints.getSummary());
+                        summary.remove(datefield);
+                        constraints = new Constraints(summary);
+                    }
+                }
             }
         }
         sql.append(" from " + quote(kdbTableName) + " ");
@@ -262,7 +292,7 @@ public class KdbQueryStringBuilder
         //use daterange
         if(daterange != null)
         {
-            clauses.add("(date within (" + KdbQueryStringBuilder.toLiteral(daterange.from_day, MinorType.DATEDAY, null) + ";" + KdbQueryStringBuilder.toLiteral(daterange.to_day, MinorType.DATEDAY, null) + "))");
+            clauses.add("(" + datefield + " within (" + KdbQueryStringBuilder.toLiteral(daterange.from_day, MinorType.DATEDAY, null) + ";" + KdbQueryStringBuilder.toLiteral(daterange.to_day, MinorType.DATEDAY, null) + "))");
         }
         //normal where clauses
         clauses.addAll(toConjuncts(tableSchema.getFields(), constraints, accumulator, split.getProperties()));

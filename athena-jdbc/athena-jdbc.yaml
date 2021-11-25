@@ -48,6 +48,10 @@ Parameters:
   SubnetIds:
     Description: 'One or more Subnet IDs corresponding to the Subnet that the Lambda function can use to access you data source. (e.g. subnet1,subnet2)'
     Type: 'List<AWS::EC2::Subnet::Id>'
+  ConnectorProperties:
+    Description: '(Optional) Specify properties of connector. i.e. xxx=yyy&www=zzz'
+    Default: ''
+    Type: String
   KdbFuncListS3Bucket:
     Description: '(Optional) Specify S3 bucket of kdb function list file.'
     Default: ''
@@ -78,6 +82,7 @@ Resources:
           funcmap_s3keys: !Ref KdbFuncListS3Keys
           funcfile_s3bucket: !Ref KdbFuncDeclareS3Bucket
           funcfile_s3keys: !Ref KdbFuncDeclareS3Keys
+          connector_properties: !Ref_ConnectorProperties
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-1.0.jar"

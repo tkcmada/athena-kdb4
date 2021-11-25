@@ -201,6 +201,23 @@ public class KdbQueryStringBuilderTest
     }
 
     @Test
+    public void buildSql_datepushdown_between_nowhereondatepushdown() throws SQLException
+    {
+        setup();
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true&nowhereondatepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.03] ", resultSql);
+    }
+
+    @Test
     public void buildSql_datepushdown_singlevalue() throws SQLException
     {
         setup();

@@ -61,6 +61,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -90,6 +91,8 @@ public class KdbMetadataHandler
     public static final String SCHEMA_UPPERDATE_KEY = "upperdate";
     public static final String SCHEMA_LOWERDATEADJUST_KEY = "lowerdateadjust";
     public static final String SCHEMA_UPPERDATEADJUST_KEY = "upperdateadjust";
+    public static final String SCHEMA_NOWHEREONDATEPUSHDOWN_KEY = "nowhereondatepushdown";
+    public static final String SCHEMA_DATEFIELD_KEY = "datefield";
 
     private static boolean isListMappedToArray = true;
 
@@ -654,19 +657,12 @@ public class KdbMetadataHandler
         resolver = resolver_;
     }
     
-    private static String null2emp(String s)
-    {
-        if(s == null)
-            return "";
-        return s.trim();
-    }
-
     public static void declareFunctionsFromS3(Connection conn) throws IOException, SQLException
     {
         LOGGER.info("declareFunctionsFromS3...");
-        String s3region = null2emp(System.getenv("AWS_REGION"));
-        String s3bucket = null2emp(System.getenv("funcfile_s3bucket"));
-        String s3keys   = null2emp(System.getenv("funcfile_s3keys"));
+        String s3region = Objects.toString(System.getenv("AWS_REGION"), "").trim();
+        String s3bucket = Objects.toString(System.getenv("funcfile_s3bucket"), "").trim();
+        String s3keys   = Objects.toString(System.getenv("funcfile_s3keys"), "").trim();
         LOGGER.info("funcfile region={}, bucket={}, keys={}", s3region, s3bucket, s3keys);
         if(s3region.isEmpty() || s3bucket.isEmpty() || s3keys.isEmpty())
         {
@@ -693,9 +689,9 @@ public class KdbMetadataHandler
             LOGGER.info("function list is already cached.");
             return funcListCache;
         }
-        String s3region = null2emp(System.getenv("AWS_REGION"));
-        String s3bucket = null2emp(System.getenv("funcmap_s3bucket"));
-        String s3keys   = null2emp(System.getenv("funcmap_s3keys"));
+        String s3region = Objects.toString(System.getenv("AWS_REGION"), "");
+        String s3bucket = Objects.toString(System.getenv("funcmap_s3bucket"), "");
+        String s3keys   = Objects.toString(System.getenv("funcmap_s3keys"), "");
         LOGGER.info("funclist region={}, bucket={}, keys={}", s3region, s3bucket, s3keys);
         if(resolver == null)
         {
