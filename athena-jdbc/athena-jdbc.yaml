@@ -82,7 +82,7 @@ Resources:
           funcmap_s3keys: !Ref KdbFuncListS3Keys
           funcfile_s3bucket: !Ref KdbFuncDeclareS3Bucket
           funcfile_s3keys: !Ref KdbFuncDeclareS3Keys
-          connector_properties: !Ref_ConnectorProperties
+          connector_properties: !Ref ConnectorProperties
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.connectors.athena.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-1.0.jar"
