@@ -212,13 +212,13 @@ public class KdbQueryStringBuilderTest
         String resultSql = builder.buildSqlString(
             "lambda:kdb"
             , "datepushdown=true&nowhereondatepushdown=true"
-            , "func_cfd[2021.01.01;2021.01.01]"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
             , schema
             , constraints
             , split
             );
         
-        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.03] ", resultSql);
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.03;`] ", resultSql);
     }
 
     @Test
@@ -232,14 +232,14 @@ public class KdbQueryStringBuilderTest
 
         String resultSql = builder.buildSqlString(
             "lambda:kdb"
-            , "datepushdown=true"
-            , "func_cfd[2021.01.01;2021.01.01]"
+            , "datepushdown=true&wherepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
             , schema
             , constraints
             , split
             );
         
-        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.02]  where (date within (1970.01.02;1970.01.02)) , (date = 1970.01.02)", resultSql);
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.02;enlist (=; `date; enlist 1970.01.02)]  where (date within (1970.01.02;1970.01.02)) , (date = 1970.01.02)", resultSql);
     }
 
     @Test
@@ -253,14 +253,14 @@ public class KdbQueryStringBuilderTest
 
         String resultSql = builder.buildSqlString(
             "lambda:kdb"
-            , "datepushdown=true"
-            , "func_cfd[2021.01.01;2021.01.01]"
+            , "datepushdown=true&wherepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
             , schema
             , constraints
             , split
             );
         
-        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05]  where (date within (1970.01.02;1970.01.05)) , ((date >= 1970.01.02))", resultSql);
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05;enlist (>=; `date; 1970.01.02)]  where (date within (1970.01.02;1970.01.05)) , ((date >= 1970.01.02))", resultSql);
     }
 
     @Test
@@ -373,14 +373,14 @@ public class KdbQueryStringBuilderTest
 
         String resultSql = builder.buildSqlString(
             "lambda:kdb"
-            , "datepushdown=true&para=2"
-            , "func_cfd[2021.01.01;2021.01.01]"
+            , "datepushdown=true&para=2&wherepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
             , schema
             , constraints
             , split
             );
         
-        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.02]  where (date within (1970.01.02;1970.01.02)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.02;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.02)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
     }
 
     @Test
@@ -393,36 +393,13 @@ public class KdbQueryStringBuilderTest
 
         String resultSql = builder.buildSqlString(
             "lambda:kdb"
-            , "datepushdown=true&para=2"
-            , "func_cfd[2021.01.01;2021.01.01]"
-            , schema
-            , constraints
-            , split
-            );
-        
-        Assert.assertEquals("q) select time, date from func_cfd[1970.01.03;1970.01.03]  where (date within (1970.01.03;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
-    }
-
-    @Test
-    public void buildSql_datepushdown_wherepushdown() throws SQLException
-    {
-        setup();
-
-        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
-            .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, new org.apache.arrow.vector.util.Text("1970.01.02D09:00:00.000000000")))
-            .build();
-        Mockito.when(constraints.getSummary()).thenReturn(summary);
-
-        String resultSql = builder.buildSqlString(
-            "lambda:kdb"
-            , "datepushdown=true&nowhereondatepushdown=true&wherepushdown=true"
+            , "datepushdown=true&para=2&wherepushdown=true"
             , "func_cfd[2021.01.01;2021.01.01;`]"
             , schema
             , constraints
             , split
             );
         
-        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05;enlist (>=; `time; 1970.01.02D09:00:00.000000000)]  where ((time >= 1970.01.02D09:00:00.000000000))", resultSql);
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.03;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.03;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
     }
-
 }
