@@ -243,7 +243,7 @@ public class KdbQueryStringBuilderTest
     }
 
     @Test
-    public void buildSql_datepushdown_singlevalue_and_time_null() throws SQLException
+    public void buildSql_datepushdown_complex_criteria_and_null() throws SQLException
     {
         setup();
 
