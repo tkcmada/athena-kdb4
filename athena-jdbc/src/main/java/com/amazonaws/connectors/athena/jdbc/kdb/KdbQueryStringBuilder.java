@@ -277,7 +277,7 @@ public class KdbQueryStringBuilder
                 String whereclause = null;
                 if (wherepushdown) {
                     LOGGER.info("wherepushdown is enabled.");
-                    whereclause = toWhereClause(tableSchema.getFields(), constraints, split.getProperties());
+                    whereclause = toWhereClause(tableSchema.getFields(), constraints.getSummary(), split.getProperties());
                 }
                 final String orgKdbTableName = kdbTableName;
                 kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange, whereclause);
@@ -520,7 +520,7 @@ public class KdbQueryStringBuilder
         {
             kdbTableName = kdbTableName.replaceFirst(
                 "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *;` *(?=(;|\\]))"
-                , "[" + from + ";" + to + "; " + whereclause);
+                , "[" + from + ";" + to + ";" + whereclause);
         }
         else
         {
@@ -784,7 +784,7 @@ public class KdbQueryStringBuilder
         return conjuncts;
     }
 
-    protected String toWhereClause(List<Field> columns, Constraints constraints, Map<String, String> partitionSplit)
+    protected String toWhereClause(List<Field> columns, Map<String, ValueSet> constraintsSummary, Map<String, String> partitionSplit)
     {
         List<String> conjuncts = Lists.newArrayList();
         for (Field column : columns) {
@@ -811,8 +811,8 @@ public class KdbQueryStringBuilder
                     //no default logic
             }
             ArrowType type = column.getType();
-            if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
-                ValueSet valueSet = constraints.getSummary().get(column.getName());
+            if (constraintsSummary != null && ! constraintsSummary.isEmpty()) {
+                ValueSet valueSet = constraintsSummary.get(column.getName());
                 if (valueSet != null) {
                     String cond = toWhereClause(column.getName(), column, valueSet, type);
                     if(cond != null)
@@ -1093,7 +1093,7 @@ public class KdbQueryStringBuilder
         {
             valuestr = toLiteral(value, type, columnName, column);
         }
-        return "(" + operator + "; " + backquote(columnName) + "; " + toLiteral(value, type, columnName, column) + ")";
+        return "(" + operator + "; " + backquote(columnName) + "; " + valuestr + ")";
     }
 
 }
