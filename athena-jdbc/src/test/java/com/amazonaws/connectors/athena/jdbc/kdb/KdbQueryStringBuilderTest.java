@@ -19,7 +19,6 @@
  */
 package com.amazonaws.connectors.athena.jdbc.kdb;
 
-import java.beans.Transient;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Arrays;
@@ -101,9 +100,9 @@ public class KdbQueryStringBuilderTest
     @Test
     public void pushdown()
     {
-        Assert.assertEquals("myfunc[1970.01.01;1970.01.01]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(0, 0)));
-        Assert.assertEquals("myfunc[1970.01.02;1970.01.03]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(1, 2)));
-        Assert.assertEquals("myfunc[2021.08.30;2021.08.30]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(18869, 18869)));
+        Assert.assertEquals("myfunc[1970.01.01;1970.01.01]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(0, 0), null));
+        Assert.assertEquals("myfunc[1970.01.02;1970.01.03]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(1, 2), null));
+        Assert.assertEquals("myfunc[2021.08.30;2021.08.30]", KdbQueryStringBuilder.pushDownDateCriteriaIntoFuncArgs("myfunc[2021.01.01;2021.01.01]", new DateCriteria(18869, 18869), null));
     }
 
     @Test
@@ -398,4 +397,27 @@ public class KdbQueryStringBuilderTest
         
         Assert.assertEquals("q) select time, date from func_cfd[1970.01.03;1970.01.03]  where (date within (1970.01.03;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
     }
+
+    @Test
+    public void buildSql_datepushdown_wherepushdown() throws SQLException
+    {
+        setup();
+
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, new org.apache.arrow.vector.util.Text("1970.01.02D09:00:00.000000000")))
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true&nowhereondatepushdown=true&wherepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05; (and; (>=; `time; 1970.01.02D09:00:00.000000000))]  where ((time >= 1970.01.02D09:00:00.000000000))", resultSql);
+    }
+
 }

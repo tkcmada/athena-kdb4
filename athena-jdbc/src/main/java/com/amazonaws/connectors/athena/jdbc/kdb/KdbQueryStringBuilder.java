@@ -19,6 +19,7 @@
  */
 package com.amazonaws.connectors.athena.jdbc.kdb;
 
+import static java.util.stream.Collectors.joining;
 import com.amazonaws.athena.connector.lambda.domain.Split;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
@@ -31,6 +32,7 @@ import com.amazonaws.connectors.athena.jdbc.manager.JdbcRecordHandler.SkipQueryE
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -68,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -178,6 +181,8 @@ public class KdbQueryStringBuilder
         if(datefield.isEmpty())
             datefield = "date";
         
+        final boolean wherepushdown = "true".equals(props.get(KdbMetadataHandler.SCHEMA_WHEREPUSHDOWN_KEY));
+        
         StringBuilder sql = new StringBuilder();
 
         String columnNames = tableSchema.getFields().stream()
@@ -268,8 +273,14 @@ public class KdbQueryStringBuilder
             if("true".equals(datepushdown))
             {
                 LOGGER.info("datepushdown is enabled.");
+                // prepare where clause push down
+                String whereclause = null;
+                if (wherepushdown) {
+                    LOGGER.info("wherepushdown is enabled.");
+                    whereclause = toWhereClause(tableSchema.getFields(), constraints, split.getProperties());
+                }
                 final String orgKdbTableName = kdbTableName;
-                kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange);
+                kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange, whereclause);
                 if(! kdbTableName.equals(orgKdbTableName))
                 {
                     final String nowhereondatepushdown = Objects.toString(props.get(KdbMetadataHandler.SCHEMA_NOWHEREONDATEPUSHDOWN_KEY), "").toLowerCase();
@@ -499,26 +510,25 @@ public class KdbQueryStringBuilder
         return a;
     }
 
-    static public String pushDownDateCriteriaIntoFuncArgs(String kdbTableName, DateCriteria daterange)
+    static public String pushDownDateCriteriaIntoFuncArgs(String kdbTableName, DateCriteria daterange, String whereclause)
     {
         String from = KdbQueryStringBuilder.toLiteral(daterange.from_day, MinorType.DATEDAY, null);
         String to   = KdbQueryStringBuilder.toLiteral(daterange.to_day  , MinorType.DATEDAY, null);
         //First two arguments of function look date type and date_from and date_to are given.
-        kdbTableName = kdbTableName.replaceFirst(
-            "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *"
-            , "[" + from + ";" + to);
 
-        //not supported
-        // else if(date_from != null) {
-        //     //First one argument  of function look date type and date_from.
-        //     if(kdbTableName.matches(".*\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9].*")) {
-        //         //if funciton has two dates arguments, we should skip it.
-        //         //TESTED by test_select_stmt_func_subquery_where_pushdown5_only_from_clause
-        //     }
-        //     else {
-        //         kdbTableName = kdbTableName.replaceFirst( "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *", "[" + date_from);
-        //     }
-        // }
+        if(whereclause != null)
+        {
+            kdbTableName = kdbTableName.replaceFirst(
+                "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *;`(?=(;|\\]))"
+                , "[" + from + ";" + to + "; " + whereclause);
+        }
+        else
+        {
+            kdbTableName = kdbTableName.replaceFirst(
+                "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *"
+                , "[" + from + ";" + to);
+        }
+
         return kdbTableName;
     }
 
@@ -774,6 +784,50 @@ public class KdbQueryStringBuilder
         return conjuncts;
     }
 
+    protected String toWhereClause(List<Field> columns, Constraints constraints, Map<String, String> partitionSplit)
+    {
+        List<String> conjuncts = Lists.newArrayList();
+        for (Field column : columns) {
+            if (partitionSplit.containsKey(column.getName())) {
+                continue; // Ignore constraints on partition name as RDBMS does not contain these as columns. Presto will filter these values.
+            }
+            final char kdbtype = KdbMetadataHandler.getKdbTypeChar(column);
+            switch(kdbtype) {
+                case 'C': //list of char
+                case 'P': //list of timestamp
+                case 'S': //list of symbol
+                case 'X': //list of byte
+                case 'H': //list of short
+                case 'I': //list of int
+                case 'J': //list of long
+                case 'E': //list of real
+                case 'F': //list of float
+                case 'B': //list of bit
+                case 'G': //list of guid
+                case 'D': //list of date
+                    LOGGER.info("list column is excluded from where caluse. columnName=" + column.getName());
+                    continue;
+                default:
+                    //no default logic
+            }
+            ArrowType type = column.getType();
+            if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
+                ValueSet valueSet = constraints.getSummary().get(column.getName());
+                if (valueSet != null) {
+                    String cond = toWhereClause(column.getName(), column, valueSet, type);
+                    if(cond != null)
+                        conjuncts.add(cond);
+                }
+            }
+        }
+        if(conjuncts.isEmpty())
+            return "`";
+        // else if(conjuncts.size() == 1)
+        //     return Iterables.getOnlyElement(conjuncts);
+        else
+            return "(and; " + Joiner.on("; ").join(conjuncts) + ")";
+    }
+
     protected String toPredicate(String columnName, Field column, ValueSet valueSet, ArrowType type, List<TypeAndValue> accumulator)
     {
         List<String> disjuncts = new ArrayList<>();
@@ -793,6 +847,7 @@ public class KdbQueryStringBuilder
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
+                //probably this is typo and meant "valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()" ?
                 return toPredicateNull(columnName, column, type, accumulator);
             }
 
@@ -876,6 +931,114 @@ public class KdbQueryStringBuilder
         return "(" + Joiner.on(" or ").join(disjuncts) + ")";
     }
 
+    protected String toWhereClause(String columnName, Field column, ValueSet valueSet, ArrowType type)
+    {
+        if(valueSet == null)
+            return null;
+    
+        LOGGER.info("toWhereClause columnName={}, type={}, valueSet={}", columnName, type, valueSet);
+        
+        if (! (valueSet instanceof SortedRangeSet)) {
+            //don't know this type valueSet
+            LOGGER.info("toWhereClause don't know this type valueSet. columnName={}, type={}, valueSet={}", columnName, type, valueSet);
+            return null;
+        }
+    
+        List<String> disjuncts = new ArrayList<>();
+        List<Object> singleValues = new ArrayList<>();
+
+        if(valueSet.isAll())
+            return null; //no condition
+
+        if (valueSet.isNone())
+        {
+            if (valueSet.isNullAllowed())
+                return toWhereClause(columnName, column, "=", null, type);
+            else
+                throw new IllegalArgumentException("not supported isNone && ! isNullAllowed combination. columnName=" + columnName + "; valueSet=" + valueSet);
+        }
+
+        Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
+        if (valueSet.isNullAllowed()) {
+            disjuncts.add(toWhereClause(columnName, column, "=", null, type));
+        }
+
+        if (rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
+            //no boundary condition
+        } else {
+            for (Range range : valueSet.getRanges().getOrderedRanges()) {
+                if (range.isSingleValue()) {
+                    singleValues.add(range.getLow().getValue());
+                }
+                else {
+                    final List<String> rangeConjuncts = new ArrayList<>();
+                    if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
+                        //between = within
+                        final List<Object> atoms = Lists.newArrayList(range.getLow().getValue(), range.getHigh().getValue());
+                        rangeConjuncts.add(toWhereClause(columnName, column, "within", atoms, type));
+                    }
+                    else
+                    {
+                        if (!range.getLow().isLowerUnbounded()) {
+                            switch (range.getLow().getBound()) {
+                                case ABOVE:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, ">", range.getLow().getValue(), type));
+                                    break;
+                                case EXACTLY:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, ">=", range.getLow().getValue(), type));
+                                    break;
+                                case BELOW:
+                                    throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                                default:
+                                    throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
+                            }
+                        }
+                        if (!range.getHigh().isUpperUnbounded()) {
+                            switch (range.getHigh().getBound()) {
+                                case ABOVE:
+                                    throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                                case EXACTLY:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, "<=", range.getHigh().getValue(), type));
+                                    break;
+                                case BELOW:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, "<", range.getHigh().getValue(), type));
+                                    break;
+                                default:
+                                    throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
+                            }
+                        }
+                    }
+                    // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
+                    Preconditions.checkState(!rangeConjuncts.isEmpty());
+                    if(rangeConjuncts.size() > 1) 
+                    {
+                        disjuncts.add("(and; " + Joiner.on("; ").join(rangeConjuncts) + ")");
+                    }
+                    else
+                    {
+                        disjuncts.add(rangeConjuncts.get(0));
+                    }
+                }
+            }
+        }
+        // Add back all of the possible single values either as an equality or an IN predicate
+        if (singleValues.size() == 1) 
+        {
+            disjuncts.add(toWhereClause(columnName, column, "=", Iterables.getOnlyElement(singleValues), type));
+        }
+        else if (singleValues.size() > 1) 
+        {
+            disjuncts.add(toWhereClause(columnName, column, "in", singleValues, type));
+        }
+
+        if(disjuncts.isEmpty())
+            return null; //no criteria
+        else if(disjuncts.size() == 1)
+            return Iterables.getOnlyElement(disjuncts);
+        else
+            return "(or; " + Joiner.on("; ").join(disjuncts) + ")";
+    }
+
     protected String toPredicateNull(String columnName, Field column, ArrowType type, List<TypeAndValue> accumulator)
     {
         // accumulator.add(new TypeAndValue(type, value));
@@ -893,4 +1056,44 @@ public class KdbQueryStringBuilder
     {
         return name;
     }
+
+
+    protected static String backquote(String s)
+    {
+        return "`" + s;
+    }
+
+
+    static String toWhereClause(String columnName, Field column, String operator, Object value, ArrowType type)
+    {
+        String valuestr;
+        if(operator == "=")
+        {
+            final List<Object> list = Lists.newLinkedList();
+            list.add(value);
+            value = list; //to ensure list
+        }
+        if(value instanceof List)
+        {
+            final List<Object> list = (List<Object>)value;
+            if(list.isEmpty())
+            {
+                throw new IllegalStateException("toWhereClause not expect empty list. columnName=" + columnName + " operator=" + operator + " type=" + type);
+            }
+            else if(list.size() == 1)
+            {
+                valuestr = "enlist " + toLiteral(Iterables.getOnlyElement(list), type, columnName, column);
+            }
+            else
+            {
+                valuestr = "(" + list.stream().map(e->toLiteral(e, type, columnName, column)).collect(joining("; ")) + ")";
+            }
+        }
+        else
+        {
+            valuestr = toLiteral(value, type, columnName, column);
+        }
+        return "(" + operator + "; " + backquote(columnName) + "; " + toLiteral(value, type, columnName, column) + ")";
+    }
+
 }

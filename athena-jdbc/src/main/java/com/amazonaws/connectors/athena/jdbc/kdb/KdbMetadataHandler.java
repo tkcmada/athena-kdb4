@@ -92,6 +92,7 @@ public class KdbMetadataHandler
     public static final String SCHEMA_LOWERDATEADJUST_KEY = "lowerdateadjust";
     public static final String SCHEMA_UPPERDATEADJUST_KEY = "upperdateadjust";
     public static final String SCHEMA_NOWHEREONDATEPUSHDOWN_KEY = "nowhereondatepushdown";
+    public static final String SCHEMA_WHEREPUSHDOWN_KEY = "wherepushdown";
     public static final String SCHEMA_DATEFIELD_KEY = "datefield";
 
     private static boolean isListMappedToArray = true;
