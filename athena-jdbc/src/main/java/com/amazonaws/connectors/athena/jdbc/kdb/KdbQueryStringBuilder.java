@@ -953,14 +953,14 @@ public class KdbQueryStringBuilder
         if (valueSet.isNone())
         {
             if (valueSet.isNullAllowed())
-                return toWhereClause(columnName, column, "=", null, type);
+                return toWhereClauseNull(columnName);
             else
                 throw new IllegalArgumentException("not supported isNone && ! isNullAllowed combination. columnName=" + columnName + "; valueSet=" + valueSet);
         }
 
         Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
         if (valueSet.isNullAllowed()) {
-            disjuncts.add(toWhereClause(columnName, column, "=", null, type));
+            disjuncts.add(toWhereClauseNull(columnName));
         }
 
         if (rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
@@ -1096,4 +1096,8 @@ public class KdbQueryStringBuilder
         return "(" + operator + "; " + backquote(columnName) + "; " + valuestr + ")";
     }
 
+    static String toWhereClauseNull(String columnName)
+    {
+        return "(null; `" + columnName + ")";
+    }
 }

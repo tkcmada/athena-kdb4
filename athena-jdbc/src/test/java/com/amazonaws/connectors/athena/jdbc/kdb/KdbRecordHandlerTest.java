@@ -426,4 +426,12 @@ public class KdbRecordHandlerTest
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
         return valueSet;
     }
+
+    static ValueSet getRangeSetWithNoneNull() {
+        ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(valueSet.isNone()).thenReturn(true);
+        Mockito.when(valueSet.isNullAllowed()).thenReturn(true);
+        return valueSet;
+    }
+
 }
