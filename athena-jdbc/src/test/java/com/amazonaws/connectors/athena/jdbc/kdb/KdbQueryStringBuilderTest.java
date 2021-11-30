@@ -417,7 +417,7 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05; (and; (>=; `time; 1970.01.02D09:00:00.000000000))]  where ((time >= 1970.01.02D09:00:00.000000000))", resultSql);
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.05; enlist (>=; `time; 1970.01.02D09:00:00.000000000)]  where ((time >= 1970.01.02D09:00:00.000000000))", resultSql);
     }
 
 }

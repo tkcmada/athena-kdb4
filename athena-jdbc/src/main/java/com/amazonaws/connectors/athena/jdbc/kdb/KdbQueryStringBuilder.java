@@ -822,10 +822,10 @@ public class KdbQueryStringBuilder
         }
         if(conjuncts.isEmpty())
             return "`";
-        // else if(conjuncts.size() == 1)
-        //     return Iterables.getOnlyElement(conjuncts);
+        else if(conjuncts.size() == 1)
+            return "enlist " + Iterables.getOnlyElement(conjuncts);
         else
-            return "(and; " + Joiner.on("; ").join(conjuncts) + ")";
+            return "(" + Joiner.on("; ").join(conjuncts) + ")";
     }
 
     protected String toPredicate(String columnName, Field column, ValueSet valueSet, ArrowType type, List<TypeAndValue> accumulator)
