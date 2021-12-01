@@ -265,6 +265,28 @@ public class KdbQueryStringBuilderTest
         Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.02;((null; `time); (=; `date; enlist 1970.01.02))]  where (date within (1970.01.02;1970.01.02)) , (time = 0Np) , (date = 1970.01.02)", resultSql);
     }
 
+    @Test
+    public void buildSql_datepushdown_complex_criteria_and_null_nowhereondatepushdown() throws SQLException
+    {
+        setup();
+
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("date", KdbRecordHandlerTest.getSingleValueSet(1)) // date == 1970.01.02
+            .put("time", KdbRecordHandlerTest.getRangeSetWithNoneNull())
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true&wherepushdown=true&nowhereondatepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date from func_cfd[1970.01.02;1970.01.02;enlist (null; `time)]  where (time = 0Np)", resultSql);
+    }
 
     @Test
     public void buildSql_datepushdown_only_lowerbound() throws SQLException

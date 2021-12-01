@@ -267,25 +267,28 @@ public class KdbQueryStringBuilder
 
         String kdbTableName = KdbMetadataHandler.athenaTableNameToKdbTableName(table);
         //push down date criteria
-        if (daterange != null) {
+        if (daterange != null) {            
             final String datepushdown = Objects.toString(props.get(KdbMetadataHandler.SCHEMA_DATEPUSHDOWN_KEY), "").toLowerCase();
             LOGGER.info("datepushdown={}", datepushdown);
             if("true".equals(datepushdown))
             {
                 LOGGER.info("datepushdown is enabled.");
+
+                final String nowhereondatepushdownStr = Objects.toString(props.get(KdbMetadataHandler.SCHEMA_NOWHEREONDATEPUSHDOWN_KEY), "").toLowerCase();
+                LOGGER.info("nowhereondatepushdown={}", nowhereondatepushdownStr);
+                final boolean nowhereondatepushdown = "true".equals(nowhereondatepushdownStr);
+    
                 // prepare where clause push down
                 String whereclause = null;
                 if (wherepushdown) {
                     LOGGER.info("wherepushdown is enabled.");
-                    whereclause = toWhereClause(tableSchema.getFields(), constraints.getSummary(), split.getProperties());
+                    whereclause = toWhereClause(tableSchema.getFields(), constraints.getSummary(), split.getProperties(), nowhereondatepushdown, datefield);
                 }
                 final String orgKdbTableName = kdbTableName;
                 kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange, whereclause);
                 if(! kdbTableName.equals(orgKdbTableName))
                 {
-                    final String nowhereondatepushdown = Objects.toString(props.get(KdbMetadataHandler.SCHEMA_NOWHEREONDATEPUSHDOWN_KEY), "").toLowerCase();
-                    LOGGER.info("nowhereondatepushdown={}", nowhereondatepushdown);
-                    if("true".equals(nowhereondatepushdown))
+                    if(nowhereondatepushdown)
                     {
                         LOGGER.info("ignore where clause of date.");
                         daterange = null; //we don't use daterange information in where clause
@@ -784,12 +787,17 @@ public class KdbQueryStringBuilder
         return conjuncts;
     }
 
-    protected String toWhereClause(List<Field> columns, Map<String, ValueSet> constraintsSummary, Map<String, String> partitionSplit)
+    protected String toWhereClause(List<Field> columns, Map<String, ValueSet> constraintsSummary, Map<String, String> partitionSplit, boolean nowhereondatepushdown, String datefield)
     {
         List<String> conjuncts = Lists.newArrayList();
         for (Field column : columns) {
             if (partitionSplit.containsKey(column.getName())) {
                 continue; // Ignore constraints on partition name as RDBMS does not contain these as columns. Presto will filter these values.
+            }
+            if (nowhereondatepushdown && datefield.equals(column.getName()))
+            {
+                LOGGER.info("toWhereClause skips field " + datefield);
+                continue;
             }
             final char kdbtype = KdbMetadataHandler.getKdbTypeChar(column);
             switch(kdbtype) {
