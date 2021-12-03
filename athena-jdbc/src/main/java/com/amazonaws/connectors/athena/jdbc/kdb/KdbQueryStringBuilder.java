@@ -283,6 +283,7 @@ public class KdbQueryStringBuilder
                 if (wherepushdown) {
                     LOGGER.info("wherepushdown is enabled.");
                     whereclause = toWhereClause(tableSchema.getFields(), constraints.getSummary(), split.getProperties(), nowhereondatepushdown, datefield);
+                    LOGGER.info("whereclause=" + String.valueOf(whereclause));
                 }
                 final String orgKdbTableName = kdbTableName;
                 kdbTableName = pushDownDateCriteriaIntoFuncArgs(kdbTableName, daterange, whereclause);
@@ -518,19 +519,26 @@ public class KdbQueryStringBuilder
         String from = KdbQueryStringBuilder.toLiteral(daterange.from_day, MinorType.DATEDAY, null);
         String to   = KdbQueryStringBuilder.toLiteral(daterange.to_day  , MinorType.DATEDAY, null);
         //First two arguments of function look date type and date_from and date_to are given.
+        final String orgkdbTableName = kdbTableName;
 
         if(whereclause != null)
         {
             kdbTableName = kdbTableName.replaceFirst(
                 "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *;` *(?=(;|\\]))"
                 , "[" + from + ";" + to + ";" + whereclause);
+            if(! kdbTableName.equals(orgkdbTableName))
+            {
+                return kdbTableName; //pushdown successfully
+            }
+            else
+            {
+                //tested by buildSql_datepushdown_wherepushdown_fallback_between
+            }
         }
-        else
-        {
-            kdbTableName = kdbTableName.replaceFirst(
-                "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *"
-                , "[" + from + ";" + to);
-        }
+
+        kdbTableName = kdbTableName.replaceFirst(
+            "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *"
+            , "[" + from + ";" + to);
 
         return kdbTableName;
     }
