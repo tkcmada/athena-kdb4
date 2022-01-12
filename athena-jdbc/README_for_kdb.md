@@ -71,7 +71,7 @@ mvn install:install-file -DgroupId=com.kx -DartifactId=jdbc -Dversion=0.1 -Dfile
 cd athena-federation-sdk
 mvn -o -llr clean compile -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
-mvn -o -llr clean install -DskipTests -Dmaven.test.skip
+mvn -o -llr clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 cp -rp /workspace/m2-repository/* .m2/repository/
 #revert non-necessary changes such .properties files
 ```

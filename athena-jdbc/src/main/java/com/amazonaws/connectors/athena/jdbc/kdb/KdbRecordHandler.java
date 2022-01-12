@@ -319,7 +319,7 @@ LOGGER.info("pstmt:" + String.valueOf(preparedStatement));
         byte[] bytes = value.getBytes(Charsets.UTF_8);
         try (ArrowBuf buf = vector.getAllocator().buffer(bytes.length)) {
             buf.writeBytes(bytes);
-            writer.varChar().writeVarChar(0, buf.readableBytes(), buf);
+            writer.varChar().writeVarChar(0, (int)buf.readableBytes(), buf);
         }                                
     }
 
