@@ -146,7 +146,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
             tables.add(new TableName(schemaName, e.getName()));
         });
 
-        return new ListTablesResponse(request.getCatalogName(), tables);
+        return new ListTablesResponse(request.getCatalogName(), tables, null);
     }
 
     /**
@@ -170,7 +170,7 @@ public class NeptuneMetadataHandler extends GlueMetadataHandler
         Schema tableSchema = null;
         try {
             if (glue != null) {
-                tableSchema = super.doGetTable(blockAllocator, request).getSchema();
+                tableSchema = super.doGetTable(blockAllocator, request).getSchema();        
                 logger.info("doGetTable: Retrieved schema for table[{}] from AWS Glue.", request.getTableName());
             }
         } 

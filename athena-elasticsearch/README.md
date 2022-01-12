@@ -33,7 +33,7 @@ fields defined in your Elasticsearch index.
 The Amazon Athena Elasticsearch Connector exposes several configuration options via Lambda 
 environment variables:
 
-1. **disable_glue** - (Optional) If present, with any value, the connector will no longer 
+1. **disable_glue** - (Optional) If present, with any value except false, the connector will no longer 
 attempt to retrieve supplemental metadata from Glue.
 
 2. **auto_discover_endpoint** - true/false (true is the default value). If you are using Amazon
@@ -43,7 +43,7 @@ For any other type of Elasticsearch instance (e.g. self-hosted), the associated 
 must be specified in the **domain_mapping** variable. This also determines which credentials will 
 be used to access the endpoint. If **auto_discover_endpoint**=**true**, then AWS credentials will 
 be used to authenticate to Elasticsearch. Otherwise, username/password credentials retrieved from 
-Amazon Secrets Manager via the **domain_mapping** variable will be used.
+Amazon Secrets Manager via the **domain_mapping** variable will be used.*
 
 3. **domain_mapping** - Used only when **auto_discover_endpoint**=**false**, 
 this is the mapping between the domain names and their associated endpoints. The variable can
@@ -51,7 +51,7 @@ accommodate multiple Elasticsearch endpoints using the following format:
 `domain1=endpoint1,domain2=endpoint2,domain3=endpoint3,...` For the purpose of authenticating to 
 an Elasticsearch endpoint, this connector supports substitution strings injected with the format 
 `${SecretName}:` with username and password retrieved from AWS Secrets Manager (see example 
-below). The colon `:` at the end of the expression serves as a separator from the rest of the 
+below).* The colon `:` at the end of the expression serves as a separator from the rest of the 
 endpoint.
     ```                        
         Example (using secret elasticsearch-creds): 
@@ -82,6 +82,8 @@ my_bucket).
 'athena-federation-spill'. Used in conjunction with spill_bucket, this is the path within the 
 above bucket where large responses spill. You should configure an S3 lifecycle on this 
 location to delete old spills after X days/hours.
+
+*To use the Athena Federated Query feature with AWS Secrets Manager, the VPC connected to your Lambda function should have [internet access](https://aws.amazon.com/premiumsupport/knowledge-center/internet-access-lambda-function/) or a [VPC endpoint](https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html#vpc-endpoint-create) to connect to Secrets Manager.
 
 ## Setting Up Databases & Tables
 
@@ -165,6 +167,18 @@ nearest millisecond. Valid values for date and date_nanos include but are not li
 * An Elasticsearch **binary** is a string representation of a binary value encoded using Base64,
 and will be converted to a **VARCHAR**.
 
+## Running Integration Tests
+
+The integration tests in this module are designed to run without the prior need for deploying the connector. Nevertheless,
+the integration tests will not run straight out-of-the-box. Certain build-dependencies are required for them to execute correctly.
+For build commands and step-by-step instructions on building and running the integration tests see the
+[Running Integration Tests](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#running-integration-tests) README section in the **athena-federation-integ-test** module.
+
+In addition to the build-dependencies, certain test configuration attributes must also be provided in the connector's [test-config.json](./etc/test-config.json) JSON file.
+For additional information about the test configuration file, see the [Test Configuration](https://github.com/awslabs/aws-athena-query-federation/blob/master/athena-federation-integ-test/README.md#test-configuration) README section in the **athena-federation-integ-test** module.
+
+Once all prerequisites have been satisfied, the integration tests can be executed by specifying the following command: `mvn failsafe:integration-test` from the connector's root directory.
+
 ## Deploying The Connector
 
 To use this connector in your queries, navigate to AWS Serverless Application Repository and 
@@ -173,8 +187,10 @@ connector from source. To do so, follow the steps below, or use the more detaile
 athena-example module:
 
 1. From the athena-federation-sdk dir, run `mvn clean install` if you haven't already.
-2. From the athena-elasticsearch dir, run `mvn clean install`.
-3. From the athena-elasticsearch dir, run `../tools/publish.sh S3_BUCKET_NAME athena-elasticsearch` to publish the connector to your 
+2. From the athena-federation-integ-test dir, run `mvn clean install` if you haven't already
+   (**Note: failure to follow this step will result in compilation errors**).
+3. From the athena-elasticsearch dir, run `mvn clean install`.
+4. From the athena-elasticsearch dir, run `../tools/publish.sh S3_BUCKET_NAME athena-elasticsearch` to publish the connector to your 
 private AWS Serverless Application Repository. The S3_BUCKET in the command is where a copy of 
 the connector's code will be stored and retrieved by the Serverless Application Repository. This 
 will allow users with permission the ability to deploy instances of the connector via a

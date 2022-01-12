@@ -58,6 +58,16 @@ fi
 
 echo "Using AWS Region $REGION"
 
+if [[ $REGION == cn-* ]]; then
+    PARTITION="aws-cn"
+elif [[ $REGION == us-gov-* ]]; then
+    PARTITION="aws-us-gov"
+else
+  PARTITION="aws"
+fi
+
+echo "Using PARTITION $PARTITION"
+
 
 if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' ; then
     echo "No bucket policy is set on $1 , would you like to add a Serverless Application Repository Bucket Policy?"
@@ -65,6 +75,14 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         read -p "Do you wish to proceed? (yes or no) " yn
         case $yn in
             [Yy]* ) echo "Proceeding..."
+                account_regex="^[0-9]{12}$"
+                while ! [[ $account =~ $account_regex ]]
+                do
+                    read -p "Enter the AWS Account ID that will be used to publish to Serverless Application Repository (limits SAR access to applications on the specified account: " account
+                    if ! [[ $account =~ $account_regex ]];
+                        then echo "Enter a valid AWS Account ID"
+                    fi
+                done
                 cat > sar_bucket_policy.json <<- EOM
 {
   "Version": "2012-10-17",
@@ -75,7 +93,12 @@ if ! aws s3api get-bucket-policy --bucket $1 --region $REGION| grep 'Statement' 
         "Service":  "serverlessrepo.amazonaws.com"
       },
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::$1/*"
+      "Resource": "arn:$PARTITION:s3:::$1/*",
+      "Condition": {
+        "StringEquals": {
+            "aws:SourceAccount": "$account"
+        }
+      }
     }
   ]
 }
@@ -96,4 +119,3 @@ mvn clean install -Dpublishing=true -DskipTests -Dmaven.test.skip -Dcheckstyle.s
 
 sam package --template-file $2.yaml --output-template-file packaged.yaml --s3-bucket $1 --region $REGION
 sam publish --template packaged.yaml --region $REGION
-

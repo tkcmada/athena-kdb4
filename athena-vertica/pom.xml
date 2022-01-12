@@ -5,15 +5,15 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>1.0</version>
+        <version>1.1.9</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>athena-vertica</artifactId>
+    <version>${aws-athena-federation-sdk.version}</version>
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
-        <log4j2Version>2.14.0</log4j2Version>
     </properties>
     
     <dependencies>
@@ -48,7 +48,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-log4j2</artifactId>
-            <version>1.1.0</version>
+            <version>${aws.lambda-java-log4j2.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>

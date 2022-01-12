@@ -5,22 +5,22 @@
     <parent>
         <artifactId>aws-athena-query-federation</artifactId>
         <groupId>com.amazonaws</groupId>
-        <version>1.0</version>
+        <version>1.1.9</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>athena-elasticsearch</artifactId>
+    <version>${aws-athena-federation-sdk.version}</version>
 
     <properties>
         <slf4jVersion>1.7.30</slf4jVersion>
-        <log4j2Version>2.13.3</log4j2Version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-athena-federation-sdk</artifactId>
-            <version>2021.6.1</version>
+            <version>${aws-athena-federation-sdk.version}</version>
             <exclusions>
                 <!-- replaced with jcl-over-slf4j -->
                 <exclusion>
@@ -28,6 +28,12 @@
                     <artifactId>commons-logging</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>athena-federation-integ-test</artifactId>
+            <version>${aws-athena-federation-sdk.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -48,7 +54,7 @@
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-lambda-java-log4j2</artifactId>
-            <version>1.1.0</version>
+            <version>${aws.lambda-java-log4j2.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -62,6 +68,13 @@
             <artifactId>log4j-api</artifactId>
             <version>${log4j2Version}</version>
             <scope>runtime</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/software.amazon.awscdk/elasticsearch -->
+        <dependency>
+            <groupId>software.amazon.awscdk</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>${aws-cdk.version}</version>
+            <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.elasticsearch.client/elasticsearch-rest-client -->
         <dependency>
@@ -85,7 +98,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
-            <version>4.5.12</version>
+            <version>4.5.13</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
         <dependency>

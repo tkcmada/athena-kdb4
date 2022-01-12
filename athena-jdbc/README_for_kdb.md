@@ -69,9 +69,18 @@ If you see error message "Could not resolve dependencies for project com.amazona
 #in repository root directory
 mvn install:install-file -DgroupId=com.kx -DartifactId=jdbc -Dversion=0.1 -Dfile=.m2/repository/com/kx/jdbc/0.1/jdbc-0.1.jar -Dpackaging=jar   
 cd athena-federation-sdk
-mvn -o -llr clean compile -DskipTests -Dmaven.test.skip
+mvn clean compile -DskipTests -Dmaven.test.skip
+cd ../athena-federation-integ-test
+mvn clean compile -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
-mvn -o -llr clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
+mvn clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 cp -rp /workspace/m2-repository/* .m2/repository/
 #revert non-necessary changes such .properties files
+```
+
+To fetch and merge from upstream
+```
+git remote add upstream https://github.com/awslabs/aws-athena-query-federation.git
+git fetch upstream
+git merge v2021.51.1 (for example)
 ```
