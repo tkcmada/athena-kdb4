@@ -3,8 +3,6 @@ How to build in offline mode.
 #in root directory of repository
 #cp without overwriting to keep repository size small
 cp -rp –no-clobber .m2/repository/* ~/.m2/repository/
-cd athena-federation-sdk
-mvn -o -llr clean install -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
 mvn -o -llr clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 ```
