@@ -67,18 +67,20 @@ If you see error message "Could not resolve dependencies for project com.amazona
 #in repository root directory
 mvn install:install-file -DgroupId=com.kx -DartifactId=jdbc -Dversion=0.1 -Dfile=.m2/repository/com/kx/jdbc/0.1/jdbc-0.1.jar -Dpackaging=jar   
 cd athena-federation-sdk
-mvn clean compile -DskipTests -Dmaven.test.skip
+mvn clean install -DskipTests -Dmaven.test.skip
 cd ../athena-federation-integ-test
-mvn clean compile -DskipTests -Dmaven.test.skip
+mvn clean install -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
 mvn clean compile -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
+cd ..
 cp -rp /workspace/m2-repository/* .m2/repository/
-find .m2/repository -type f | grep -v .jar | xargs rm
-find .m2/repository -type f | grep jar.sha1 | xargs rm
-find .m2/repository -type f | grep jar.lastUpdated | xargs rm
+find .m2/repository -type f | grep -v .jar | xargs rm -v
+find .m2/repository -type f | grep jar.sha1 | xargs rm -v
+find .m2/repository -type f | grep jar.lastUpdated | xargs rm -v
+find .m2/repository -type f | grep .repositories | xargs rm -v
 ```
 
-(upstream only)To compact git objects size
+(upstream only)To compact git objects size(well, actually doesn't help a lot)
 ```
 du -sh .git/objects
 git filter-branch --tree-filter "rm -f -r .m2/repository/" HEAD
@@ -91,7 +93,9 @@ git \
   -c gc.rerereUnResolved=now \
   gc --aggressive
 du -sh .git/objects
-git push -f origin 
+
+git remote set-url origin <new url>
+git push  
 ```
 
 (upstream only)To fetch and merge from upstream
