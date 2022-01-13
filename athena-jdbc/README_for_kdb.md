@@ -74,10 +74,7 @@ cd ../athena-jdbc
 mvn clean compile -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 cd ..
 cp -rp /workspace/m2-repository/* .m2/repository/
-find .m2/repository -type f | grep -v .jar | xargs rm -v
-find .m2/repository -type f | grep jar.sha1 | xargs rm -v
-find .m2/repository -type f | grep jar.lastUpdated | xargs rm -v
-find .m2/repository -type f | grep .repositories | xargs rm -v
+find .m2/repository -type f -and -not -name "*.jar" -and -not -name "*.pom" | xargs rm -v
 ```
 
 (upstream only)To compact git objects size(well, actually doesn't help a lot)
