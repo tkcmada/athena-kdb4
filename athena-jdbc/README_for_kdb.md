@@ -74,7 +74,7 @@ cd ../athena-jdbc
 mvn clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 cd ..
 cp -rp /workspace/m2-repository/* .m2/repository/
-find .m2/repository -type f -and -not -name "*.jar" -and -not -name "*.pom" | xargs rm -v
+find .m2/repository -type f -and -not -name "*.jar" -and -not -name "*.pom"  -and -not -name "*.xml" | xargs rm -v
 ```
 
 (upstream only)To compact git objects size(well, actually doesn't help a lot)
