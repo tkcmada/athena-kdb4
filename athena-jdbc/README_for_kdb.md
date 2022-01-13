@@ -76,7 +76,7 @@ cp -rp /workspace/m2-repository/* .m2/repository/
 #revert non-necessary changes such .properties files
 ```
 
-To fetch and merge from upstream
+(upstream only)To fetch and merge from upstream
 ```
 git remote add upstream https://github.com/awslabs/aws-athena-query-federation.git
 git fetch upstream
