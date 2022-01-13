@@ -71,9 +71,27 @@ mvn clean compile -DskipTests -Dmaven.test.skip
 cd ../athena-federation-integ-test
 mvn clean compile -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
-mvn clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
+mvn clean compile -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 cp -rp /workspace/m2-repository/* .m2/repository/
-#revert non-necessary changes such .properties files
+find .m2/repository -type f | grep -v .jar | xargs rm
+find .m2/repository -type f | grep jar.sha1 | xargs rm
+find .m2/repository -type f | grep jar.lastUpdated | xargs rm
+```
+
+(upstream only)To compact git objects size
+```
+du -sh .git/objects
+git filter-branch --tree-filter "rm -f -r .m2/repository/" HEAD
+git \
+  -c gc.pruneExpire=now \
+  -c gc.worktreePruneExpire=now \
+  -c gc.reflogExpire=now \
+  -c gc.reflogExpireUnreachable=now \
+  -c gc.rerereResolved=now \
+  -c gc.rerereUnResolved=now \
+  gc --aggressive
+du -sh .git/objects
+git push -f origin 
 ```
 
 (upstream only)To fetch and merge from upstream
