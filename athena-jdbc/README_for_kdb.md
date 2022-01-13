@@ -71,7 +71,7 @@ mvn clean install -DskipTests -Dmaven.test.skip
 cd ../athena-federation-integ-test
 mvn clean install -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
-mvn clean compile -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
+mvn clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 cd ..
 cp -rp /workspace/m2-repository/* .m2/repository/
 find .m2/repository -type f -and -not -name "*.jar" -and -not -name "*.pom" | xargs rm -v
