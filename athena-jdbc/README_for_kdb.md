@@ -101,3 +101,7 @@ git remote add upstream https://github.com/awslabs/aws-athena-query-federation.g
 git fetch upstream
 git merge v2021.51.1 (for example)
 ```
+
+how to push using SSH key
+https://tks2.co.jp/2021/01/18/github-ssh/
+
