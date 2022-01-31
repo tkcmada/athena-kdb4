@@ -17,7 +17,7 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.connectors.athena.jdbc.kdb;
+package com.amazonaws.athena.connectors.jdbc.kdb;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -38,7 +38,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.amazonaws.connectors.athena.jdbc.manager.JdbcRecordHandler.SkipQueryException;
+import com.amazonaws.athena.connectors.jdbc.manager.JdbcRecordHandler.SkipQueryException;
 import com.google.common.collect.ImmutableMap;
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
 import com.amazonaws.athena.connector.lambda.domain.Split;
@@ -46,7 +46,7 @@ import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
-import com.amazonaws.connectors.athena.jdbc.kdb.KdbQueryStringBuilder.DateCriteria;
+import com.amazonaws.athena.connectors.jdbc.kdb.KdbQueryStringBuilder.DateCriteria;
 
 public class KdbQueryStringBuilderTest
 {
@@ -192,6 +192,23 @@ public class KdbQueryStringBuilderTest
             "lambda:kdb"
             , "datepushdown=true&wherepushdown=true"
             , "func_cfd[2021.01.01;2021.01.01;`]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+    }
+
+    @Test
+    public void buildSql_datepushdown_wherepushdown_between_placeholder_empty_list() throws SQLException
+    {
+        setup();
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true&wherepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;()]"
             , schema
             , constraints
             , split

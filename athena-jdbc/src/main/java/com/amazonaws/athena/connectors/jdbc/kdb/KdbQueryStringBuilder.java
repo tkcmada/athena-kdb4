@@ -524,7 +524,7 @@ public class KdbQueryStringBuilder
         if(whereclause != null)
         {
             kdbTableName = kdbTableName.replaceFirst(
-                "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *;` *(?=(;|\\]))"
+                "\\[ *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *; *[0-9][0-9][0-9][0-9]\\.[0-9][0-9]\\.[0-9][0-9] *;(`|\\(\\)) *(?=(;|\\]))"
                 , "[" + from + ";" + to + ";" + whereclause);
             if(! kdbTableName.equals(orgkdbTableName))
             {

@@ -17,10 +17,10 @@
  * limitations under the License.
  * #L%
  */
-package com.amazonaws.connectors.athena.jdbc.kdb;
+package com.amazonaws.athena.connectors.jdbc.kdb;
 
 import com.amazonaws.athena.connector.lambda.data.SchemaBuilder;
-import com.amazonaws.connectors.athena.jdbc.TestBase;
+import com.amazonaws.athena.connectors.jdbc.TestBase;
 
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
