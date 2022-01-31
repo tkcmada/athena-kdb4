@@ -103,5 +103,11 @@ git merge v2021.51.1 (for example)
 ```
 
 how to push using SSH key
+```
+cd ~/.ssh
+ssh-keygen
+#(no passphrase)
+# and register ssh public key to remote repository
+```
 https://tks2.co.jp/2021/01/18/github-ssh/
 
