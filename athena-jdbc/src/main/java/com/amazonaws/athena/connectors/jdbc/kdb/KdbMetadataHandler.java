@@ -47,7 +47,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
@@ -226,6 +225,16 @@ public class KdbMetadataHandler
 
     Map<String, Character> getColumnAndType(final Connection jdbcConnection, final String kdbTableName) throws SQLException
     {
+        cacheTableSchema();
+        for(String key : tableSchemaCache.keySet())
+        {
+            if(kdbTableName.contains(key))
+            {
+                LOGGER.info("table schema cache hit. " + key);
+                return tableSchemaCache.get(key);
+            }
+        }
+        LOGGER.info("no table schema cache hit.");
         LinkedHashMap<String, Character> coltype = new LinkedHashMap<String, Character>();
         try (Statement stmt = jdbcConnection.createStatement()) {
             final String sql = "q) { flip `COLUMN_NAME`COLUMN_TYPE!(cols x; (value meta x)[;`t] ) }[" + kdbTableName + "]";
@@ -247,6 +256,42 @@ public class KdbMetadataHandler
             }
         }
         return coltype;
+    }
+
+    private static final HashMap<String, Map<String, Character>> tableSchemaCache = new HashMap<>();
+
+    static void cacheTableSchema()
+    {
+        String str = Objects.toString(System.getenv("table_cache_string"), "").trim();
+        LOGGER.info("TABLE_SCHEMA_CACHE env var = " + str);
+        if(str.isEmpty())
+        {
+            LOGGER.info("no table schema cache given");
+            return;
+        }
+        tableSchemaCache.putAll(createTableSchemaFromString(str));
+    }
+
+    static Map<String, Map<String, Character>> createTableSchemaFromString(String str)
+    {
+        Map<String, Map<String, Character>> map = new LinkedHashMap<>();
+        for(String tbl_col_type : str.split("/"))
+        {
+            String[] tbl_col_type_ary = tbl_col_type.split("=", 2);
+            String tblname = tbl_col_type_ary[0];
+            LinkedHashMap<String, Character> coltypes = new LinkedHashMap<>();
+            for(String col_type : tbl_col_type_ary[1].split(","))
+            {
+                String[] col_type_ary = col_type.split(":", 2);
+                String colname = col_type_ary[0];
+                char   coltype = col_type_ary[1].charAt(0);
+                coltypes.put(colname, coltype);
+            }
+            map.put(tblname, coltypes);
+            LOGGER.info("adding table schema cache. " + tblname + "=" + coltypes);
+        }
+        LOGGER.info("result table cache=" + map);
+        return map;
     }
 
     SchemaBuilder getSchema(final Connection jdbcConnection, final String kdbTableName) throws SQLException

@@ -108,6 +108,12 @@ public class KdbMetadataHandlerTest
         }
     }
 
+    @Test
+    public void test_createTableSchemaFromString()
+    {
+        Assert.assertEquals("{tblA={col1=b, col2=c}, tblB={col3=f, col4=g}}", KdbMetadataHandler.createTableSchemaFromString("tblA=col1:b,col2:c/tblB=col3:f,col4:g").toString());
+    }
+
     // @Test
     // public void getPartitionSchema()
     // {

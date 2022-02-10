@@ -68,6 +68,10 @@ Parameters:
     Description: '(Optional) Specify S3 keys(comma separated keys) which contains kdb functions. i.e. path/to/file1.txt,path/to/file2.txt'
     Default: ''
     Type: String
+  KdbTableCacheString:
+    Description: '(Optional) Specify table schema column name and kdb column type. i.e. tblA=col1:b,col2:c/tblB=col3:f,col4:g'
+    Default: ''
+    Type: String
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -83,6 +87,7 @@ Resources:
           funcfile_s3bucket: !Ref KdbFuncDeclareS3Bucket
           funcfile_s3keys: !Ref KdbFuncDeclareS3Keys
           connector_properties: !Ref ConnectorProperties
+          table_cache_string: !Ref KdbTableCacheString
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-2021.51.1.jar"
