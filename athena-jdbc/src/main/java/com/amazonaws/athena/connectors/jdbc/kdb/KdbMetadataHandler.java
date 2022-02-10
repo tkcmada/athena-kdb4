@@ -59,10 +59,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -204,12 +206,28 @@ public class KdbMetadataHandler
 
         LOGGER.info("getSchema...");
         cacheSchema(jdbcConnection);
-        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+
+        final String athenaTableName = tableName.getTableName();
+        LOGGER.info("Athena table name:" + athenaTableName);
+        final String kdbTableName = athenaTableNameToKdbTableName(athenaTableName);
+        LOGGER.info("Kdb table name:" + kdbTableName);
+        SchemaBuilder schemaBuilder = getSchema(jdbcConnection, kdbTableName);
+
+        // add partition columns
+        partitionSchema.getFields().forEach(schemaBuilder::addField);
+
+        Schema s = schemaBuilder.build();
+        for (Field f : s.getFields()) {
+            Types.MinorType mtype = Types.getMinorTypeForArrowType(f.getType());
+            LOGGER.info(String.format("%s %s %s", f.getName(), f.getType(), mtype));
+        }
+        return s;        
+    }
+
+    Map<String, Character> getColumnAndType(final Connection jdbcConnection, final String kdbTableName) throws SQLException
+    {
+        LinkedHashMap<String, Character> coltype = new LinkedHashMap<String, Character>();
         try (Statement stmt = jdbcConnection.createStatement()) {
-            final String athenaTableName = tableName.getTableName();
-            LOGGER.info("Athena table name:" + athenaTableName);
-            final String kdbTableName = athenaTableNameToKdbTableName(athenaTableName);
-            LOGGER.info("Kdb table name:" + kdbTableName);
             final String sql = "q) { flip `COLUMN_NAME`COLUMN_TYPE!(cols x; (value meta x)[;`t] ) }[" + kdbTableName + "]";
             //this may also work
             //q) { ([] COLUMN_NAME: cols x; COLUMN_TYPE: (value meta x)[`t]) }[ <kdbTableName here> ]
@@ -224,135 +242,144 @@ public class KdbMetadataHandler
                         LOGGER.info("assuming this col type is list of list of char");
                         coltypeobj = 'V';
                     }
-                    char coltype = (char) coltypeobj;
-                    switch (coltype) {
-                        case 'b':
-                            schemaBuilder.addField(newField(colname, Types.MinorType.BIT, KdbTypes.bit_type));
-                            break;
-                        case 'x':
-                            schemaBuilder.addField(newField(colname, Types.MinorType.TINYINT, KdbTypes.byte_type));
-                            break;
-                        case 'h':
-                            schemaBuilder.addField(newField(colname, Types.MinorType.SMALLINT, KdbTypes.short_type));
-                            break;
-                        case 'i':
-                            schemaBuilder.addField(newField(colname, Types.MinorType.INT, KdbTypes.int_type));
-                            break;
-                        case 'j':
-                            schemaBuilder.addField(newField(colname, Types.MinorType.BIGINT, KdbTypes.long_type));
-                            break;
-                        case 'e': //real is mapped to Float8 but actual kdb type is real
-                            schemaBuilder.addField(newField(colname, Types.MinorType.FLOAT8, KdbTypes.real_type));
-                            break;
-                        case 'f':
-                            schemaBuilder.addField(newField(colname, Types.MinorType.FLOAT8, KdbTypes.float_type));
-                            break;
-                        case 'c': //char is mapped to VARCHAR because Athena doesn't have 
-                            schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.char_type));
-                            break;
-                        case 's': //symbol
-                            schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.symbol_type));
-                            break;
-                        case 'C': //list of char
-                            schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_char_type));
-                            break;
-                        case 'g': //guid
-                            schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.guid_type));
-                            break;
-                        case 'p': //timestamp
-                            //Athena doesn't support DATENANO so map to VARCHAR for now
-                            schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.timestamp_type));
-                            break;
-                        // case 't': //time //Athena doesn't support TIMEMILL
-                        //     //Jdbc automatically map this column to java.sql.Time which has only sec precision
-                        //     schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.time_type));
-                        //     break;
-                        case 'n': //timespan //Athena doesn't support TIMENANO
-                            //just map to VARCHAR for now
-                            schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.timespan_type));
-                            break;
-                        case 'd':
-                            schemaBuilder.addField(newField(colname, Types.MinorType.DATEDAY, KdbTypes.date_type));
-                            break;
-                        case 'J':
-                            if (isListMappedToArray())
-                            {
-                                schemaBuilder.addField(newListField(colname, KdbTypes.list_of_long_type, Types.MinorType.BIGINT, KdbTypes.long_type));
-                            }
-                            else
-                            {
-                                schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_long_type));
-                            }
-                            break;
-                        case 'I':
-                            if (isListMappedToArray())
-                            {
-                                schemaBuilder.addField(newListField(colname, KdbTypes.list_of_int_type, Types.MinorType.INT, KdbTypes.int_type));
-                            }
-                            else
-                            {
-                                schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_int_type));
-                            }
-                            break;
-                        case 'X':
-                            if (isListMappedToArray())
-                            {
-                                schemaBuilder.addField(newListField(colname, KdbTypes.list_of_byte_type, Types.MinorType.TINYINT, KdbTypes.byte_type));
-                            }
-                            else
-                            {
-                                schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_byte_type));
-                            }
-                            break;
-                        case 'F':
-                            if (isListMappedToArray())
-                            {
-                                schemaBuilder.addField(newListField(colname, KdbTypes.list_of_float_type, Types.MinorType.FLOAT8, KdbTypes.float_type));
-                            }
-                            else
-                            {
-                                schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_float_type));
-                            }
-                            break;
-                        case 'S':
-                            if (isListMappedToArray())
-                            {
-                                schemaBuilder.addField(newListField(colname, KdbTypes.list_of_symbol_type, Types.MinorType.VARCHAR, KdbTypes.symbol_type));
-                            }
-                            else
-                            {
-                                schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_symbol_type));
-                            }
-                            break;
-                        case 'P':
-                            if (isListMappedToArray())
-                            {
-                                schemaBuilder.addField(newListField(colname, KdbTypes.list_of_timestamp_type, Types.MinorType.VARCHAR, KdbTypes.timestamp_type));
-                            }
-                            else
-                            {
-                                schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_timestamp_type));
-                            }
-                            break;
-                        case 'V': //list of list of char
-                            if (isListMappedToArray())
-                            {
-                                schemaBuilder.addField(newListField(colname, KdbTypes.list_of_list_of_char_type, Types.MinorType.VARCHAR, KdbTypes.list_of_char_type));
-                            }
-                            else
-                            {
-                                schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_list_of_char_type));
-                            }
-                            break;
-                        default:
-                            LOGGER.error("getSchema: Unable to map type for column[" + colname + "] to a supported type, attempted '" + coltype + "'");
-                    }
+                    coltype.put(colname, coltypeobj);
                 }
-                
-                
             }
         }
+        return coltype;
+    }
 
+    SchemaBuilder getSchema(final Connection jdbcConnection, final String kdbTableName) throws SQLException
+    {
+        SchemaBuilder schemaBuilder = SchemaBuilder.newBuilder();
+        Map<String, Character> coltypes = getColumnAndType(jdbcConnection, kdbTableName);
+        for(Entry<String, Character> e : coltypes.entrySet())
+        {
+            String colname = e.getKey();
+            char coltype = (char)e.getValue();
+            switch (coltype) {
+                case 'b':
+                    schemaBuilder.addField(newField(colname, Types.MinorType.BIT, KdbTypes.bit_type));
+                    break;
+                case 'x':
+                    schemaBuilder.addField(newField(colname, Types.MinorType.TINYINT, KdbTypes.byte_type));
+                    break;
+                case 'h':
+                    schemaBuilder.addField(newField(colname, Types.MinorType.SMALLINT, KdbTypes.short_type));
+                    break;
+                case 'i':
+                    schemaBuilder.addField(newField(colname, Types.MinorType.INT, KdbTypes.int_type));
+                    break;
+                case 'j':
+                    schemaBuilder.addField(newField(colname, Types.MinorType.BIGINT, KdbTypes.long_type));
+                    break;
+                case 'e': //real is mapped to Float8 but actual kdb type is real
+                    schemaBuilder.addField(newField(colname, Types.MinorType.FLOAT8, KdbTypes.real_type));
+                    break;
+                case 'f':
+                    schemaBuilder.addField(newField(colname, Types.MinorType.FLOAT8, KdbTypes.float_type));
+                    break;
+                case 'c': //char is mapped to VARCHAR because Athena doesn't have 
+                    schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.char_type));
+                    break;
+                case 's': //symbol
+                    schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.symbol_type));
+                    break;
+                case 'C': //list of char
+                    schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_char_type));
+                    break;
+                case 'g': //guid
+                    schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.guid_type));
+                    break;
+                case 'p': //timestamp
+                    //Athena doesn't support DATENANO so map to VARCHAR for now
+                    schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.timestamp_type));
+                    break;
+                // case 't': //time //Athena doesn't support TIMEMILL
+                //     //Jdbc automatically map this column to java.sql.Time which has only sec precision
+                //     schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.time_type));
+                //     break;
+                case 'n': //timespan //Athena doesn't support TIMENANO
+                    //just map to VARCHAR for now
+                    schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.timespan_type));
+                    break;
+                case 'd':
+                    schemaBuilder.addField(newField(colname, Types.MinorType.DATEDAY, KdbTypes.date_type));
+                    break;
+                case 'J':
+                    if (isListMappedToArray())
+                    {
+                        schemaBuilder.addField(newListField(colname, KdbTypes.list_of_long_type, Types.MinorType.BIGINT, KdbTypes.long_type));
+                    }
+                    else
+                    {
+                        schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_long_type));
+                    }
+                    break;
+                case 'I':
+                    if (isListMappedToArray())
+                    {
+                        schemaBuilder.addField(newListField(colname, KdbTypes.list_of_int_type, Types.MinorType.INT, KdbTypes.int_type));
+                    }
+                    else
+                    {
+                        schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_int_type));
+                    }
+                    break;
+                case 'X':
+                    if (isListMappedToArray())
+                    {
+                        schemaBuilder.addField(newListField(colname, KdbTypes.list_of_byte_type, Types.MinorType.TINYINT, KdbTypes.byte_type));
+                    }
+                    else
+                    {
+                        schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_byte_type));
+                    }
+                    break;
+                case 'F':
+                    if (isListMappedToArray())
+                    {
+                        schemaBuilder.addField(newListField(colname, KdbTypes.list_of_float_type, Types.MinorType.FLOAT8, KdbTypes.float_type));
+                    }
+                    else
+                    {
+                        schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_float_type));
+                    }
+                    break;
+                case 'S':
+                    if (isListMappedToArray())
+                    {
+                        schemaBuilder.addField(newListField(colname, KdbTypes.list_of_symbol_type, Types.MinorType.VARCHAR, KdbTypes.symbol_type));
+                    }
+                    else
+                    {
+                        schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_symbol_type));
+                    }
+                    break;
+                case 'P':
+                    if (isListMappedToArray())
+                    {
+                        schemaBuilder.addField(newListField(colname, KdbTypes.list_of_timestamp_type, Types.MinorType.VARCHAR, KdbTypes.timestamp_type));
+                    }
+                    else
+                    {
+                        schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_timestamp_type));
+                    }
+                    break;
+                case 'V': //list of list of char
+                    if (isListMappedToArray())
+                    {
+                        schemaBuilder.addField(newListField(colname, KdbTypes.list_of_list_of_char_type, Types.MinorType.VARCHAR, KdbTypes.list_of_char_type));
+                    }
+                    else
+                    {
+                        schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.list_of_list_of_char_type));
+                    }
+                    break;
+                default:
+                    LOGGER.error("getSchema: Unable to map type for column[" + colname + "] to a supported type, attempted '" + coltype + "'");
+            }
+        }
 // q)(2i;2.3;`qwe;2000.01.02;12:34:56.000;2000.01.02D12:34:56.000000000)
 // (2i;2.3;`qwe;2000.01.02;12:34:56.000;2000.01.02D12:34:56.000000000)
 
@@ -395,15 +422,7 @@ public class KdbMetadataHandler
         //         throw new RuntimeException("Could not find table in " + tableName.getSchemaName());
         //     }
 
-            // add partition columns
-            partitionSchema.getFields().forEach(schemaBuilder::addField);
-
-            Schema s = schemaBuilder.build();
-            for (Field f : s.getFields()) {
-                Types.MinorType mtype = Types.getMinorTypeForArrowType(f.getType());
-                LOGGER.info(String.format("%s %s %s", f.getName(), f.getType(), mtype));
-            }
-            return s;
+            return schemaBuilder;
         // }
     }
 

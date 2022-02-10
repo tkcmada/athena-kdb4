@@ -60,6 +60,7 @@ How to specify JDBC Connection String ?
 kdb://jdbc:kdb:<ip>:<port>?user=<user>&password=<password>
 ```
 
+(upstream only)
 How to prepare offline build(only upstream side is required)
 or
 If you see error message "Could not resolve dependencies for project com.amazonaws:athena-jdbc:jar:1.0: Could not find artifact com.kx:jdbc:jar:0.1 in redshift (https://s3.amazonaws.com/redshift-maven-repository/release)"
