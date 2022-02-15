@@ -110,7 +110,7 @@ public class GenericJdbcConnectionFactory
             LOGGER.info("getConnection " + derivedJdbcString);
             LOGGER.info("jdbcProperties=" + (jdbcProperties == null ? "null" : jdbcProperties.toString()));
 
-            LOGGER.info("connector version 2022.02.15-2");
+            LOGGER.info("connector version 2022.02.15-3");
             //kdb only
             if(databaseConnectionConfig.getType() == DatabaseEngine.KDB) {
                 int p = derivedJdbcString.indexOf("?");

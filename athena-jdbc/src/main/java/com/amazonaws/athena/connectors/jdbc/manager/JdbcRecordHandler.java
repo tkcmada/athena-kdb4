@@ -428,8 +428,9 @@ public abstract class JdbcRecordHandler
             }
             s.append(" len=");
             s.append(ary.length);
-
-            Array sary = resultSet.getArray(fieldName);
+            
+            /*
+            Array sary = resultSet.getArray(fieldName); //getArray throws SQLFeatureNotSupportedException
             ary = (Object[])sary.getArray();
             s.append(" sqlarylen=" + ary.length);
             for(int i = 0; i < ary.length; i++)
@@ -448,6 +449,7 @@ public abstract class JdbcRecordHandler
                     break;
                 }
             }
+            */
         }
         else
         {
