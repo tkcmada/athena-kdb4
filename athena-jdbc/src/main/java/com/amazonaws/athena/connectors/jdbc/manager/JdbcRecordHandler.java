@@ -229,13 +229,23 @@ public abstract class JdbcRecordHandler
             };
         }
 
+        try {
         switch (fieldType) {
             case BIT:
                 return (BitExtractor) (Object context, NullableBitHolder dst) ->
                 {
-                    boolean value = resultSet.getBoolean(fieldName);
-                    dst.value = value ? 1 : 0;
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        boolean value = resultSet.getBoolean(fieldName);
+                        dst.value = value ? 1 : 0;
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        final Object objval = resultSet.getObject(fieldName);
+                        final String clsname = objval == null ? "null" : objval.getClass().getName();
+                        throw new SQLException("Error occured. field=" + fieldName + " type=" + fieldType + " objectvalue=" + String.valueOf(objval) + " objtype=" + clsname + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case TINYINT:
                 return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
@@ -309,6 +319,9 @@ public abstract class JdbcRecordHandler
                 return null; //this indicates that makeFactory will be called.
             default:
                 throw new RuntimeException("Unhandled type " + fieldType);
+        }
+        } catch(RuntimeException ex) {
+            throw new RuntimeException("Error occured. field=" + fieldName + " type=" + fieldType + " error=" + ex.getMessage(), ex);
         }
     }
 
