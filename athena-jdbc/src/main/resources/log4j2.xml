@@ -30,7 +30,7 @@
     <Loggers>
         <Logger name="com.amazonaws.athena.connector.lambda" level="${env:ATHENA_FEDERATION_SDK_LOG_LEVEL:-warn}" />
         <Logger name="com.amazonaws.athena.connectors.jdbc" level="INFO" />
-        <Root level="DEBUG">
+        <Root level="info">
             <AppenderRef ref="Lambda" />
         </Root>
     </Loggers>
