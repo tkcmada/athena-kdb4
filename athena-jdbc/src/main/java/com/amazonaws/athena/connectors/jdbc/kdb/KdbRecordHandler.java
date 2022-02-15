@@ -132,16 +132,43 @@ LOGGER.info("pstmt:" + String.valueOf(preparedStatement));
         {
             final String kdbtype = field.getFieldType().getMetadata().get(KdbMetadataHandler.KDBTYPE_KEY);
             if (KdbTypes.real_type.name().equals(kdbtype)) {
-                final float f = resultSet.getFloat(fieldName);
-                dst.value = Double.parseDouble("" + f); //do not just cast from float to double as it would contain fraction
-                dst.isSet = resultSet.wasNull() ? 0 : 1;
-                // LOGGER.info("Float8Extractor(float) " + String.valueOf(fieldName) + " " + dst.value + " float value=" + f);
-            }
+                try
+                {
+                    final float f = resultSet.getFloat(fieldName);
+                    dst.value = Double.parseDouble("" + f); //do not just cast from float to double as it would contain fraction
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    // LOGGER.info("Float8Extractor(float) " + String.valueOf(fieldName) + " " + dst.value + " float value=" + f);
+                }
+                catch(Exception ex)
+                {
+                    final Object objval = resultSet.getObject(fieldName);
+                    if(objval != null && objval.getClass().isArray())
+                    {
+                        Object[] ary = (Object[])objval;
+
+                    }
+                    String info = getResultSetValueInfo(resultSet, fieldName);
+                    throw new SQLException("Error occured. type=float4 " + info + " error=" + ex.getMessage(), ex);
+                }
+        }
             else {
-                dst.value = resultSet.getDouble(fieldName);
-                dst.isSet = resultSet.wasNull() ? 0 : 1;
-                // LOGGER.info("Float8Extractor(double) " + String.valueOf(fieldName) + " " + dst.value + " double value=" + resultSet.getDouble(fieldName));
-            }
+                try{
+                    dst.value = resultSet.getDouble(fieldName);
+                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    // LOGGER.info("Float8Extractor(double) " + String.valueOf(fieldName) + " " + dst.value + " double value=" + resultSet.getDouble(fieldName));
+                }
+                catch(Exception ex)
+                {
+                    final Object objval = resultSet.getObject(fieldName);
+                    if(objval != null && objval.getClass().isArray())
+                    {
+                        Object[] ary = (Object[])objval;
+
+                    }
+                    String info = JdbcRecordHandler.getResultSetValueInfo(resultSet, fieldName);
+                    throw new SQLException("Error occured. type=float8 " + info + " error=" + ex.getMessage(), ex);
+                }
+        }
         };
     }
 

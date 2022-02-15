@@ -398,7 +398,7 @@ public abstract class JdbcRecordHandler
         }
     }
 
-    static private String getResultSetValueInfo(ResultSet resultSet, String fieldName) throws SQLException
+    static public String getResultSetValueInfo(ResultSet resultSet, String fieldName) throws SQLException
     {
         StringBuilder s = new StringBuilder();
         final Object objval = resultSet.getObject(fieldName);
@@ -428,6 +428,26 @@ public abstract class JdbcRecordHandler
             }
             s.append(" len=");
             s.append(ary.length);
+
+            Array sary = resultSet.getArray(fieldName);
+            ary = (Object[])sary.getArray();
+            s.append(" sqlarylen=" + ary.length);
+            for(int i = 0; i < ary.length; i++)
+            {
+                if(i > 0)
+                    s.append(",");
+                Object v = ary[i];
+                s.append(i);
+                s.append(":");
+                s.append(String.valueOf(v));
+                s.append(":");
+                s.append(v == null ? "null" : v.getClass().getName());
+                if(i > 3)
+                {
+                    s.append("...");
+                    break;
+                }
+            }
         }
         else
         {
