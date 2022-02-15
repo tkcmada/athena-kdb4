@@ -229,7 +229,6 @@ public abstract class JdbcRecordHandler
             };
         }
 
-        try {
         switch (fieldType) {
             case BIT:
                 return (BitExtractor) (Object context, NullableBitHolder dst) ->
@@ -242,76 +241,147 @@ public abstract class JdbcRecordHandler
                     }
                     catch(Exception ex)
                     {
-                        final Object objval = resultSet.getObject(fieldName);
-                        final String clsname = objval == null ? "null" : objval.getClass().getName();
-                        throw new SQLException("Error occured. field=" + fieldName + " type=" + fieldType + " objectvalue=" + String.valueOf(objval) + " objtype=" + clsname + " error=" + ex.getMessage(), ex);
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
                     }
                 };
             case TINYINT:
                 return (TinyIntExtractor) (Object context, NullableTinyIntHolder dst) ->
                 {
-                    dst.value = resultSet.getByte(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        dst.value = resultSet.getByte(fieldName);
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case SMALLINT:
                 return (SmallIntExtractor) (Object context, NullableSmallIntHolder dst) ->
                 {
-                    dst.value = resultSet.getShort(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        dst.value = resultSet.getShort(fieldName);
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case INT:
                 return (IntExtractor) (Object context, NullableIntHolder dst) ->
                 {
-                    dst.value = resultSet.getInt(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        dst.value = resultSet.getInt(fieldName);
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case BIGINT:
                 return (BigIntExtractor) (Object context, NullableBigIntHolder dst) ->
                 {
-                    dst.value = resultSet.getLong(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        dst.value = resultSet.getLong(fieldName);
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case FLOAT4:
                 return (Float4Extractor) (Object context, NullableFloat4Holder dst) ->
                 {
-                    dst.value = resultSet.getFloat(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        dst.value = resultSet.getFloat(fieldName);
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case FLOAT8:
                 return newFloat8Extractor(resultSet, fieldName, field);
             case DECIMAL:
                 return (DecimalExtractor) (Object context, NullableDecimalHolder dst) ->
                 {
-                    dst.value = resultSet.getBigDecimal(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        dst.value = resultSet.getBigDecimal(fieldName);
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case DATEDAY:
                 return (DateDayExtractor) (Object context, NullableDateDayHolder dst) ->
                 {
-                    if (resultSet.getDate(fieldName) != null) {
-                        // dst.value = (int) TimeUnit.MILLISECONDS.toDays(resultSet.getDate(fieldName).getTime());
-                        java.sql.Date date = resultSet.getDate(fieldName);
-                        org.joda.time.DateTime date2 = new org.joda.time.DateTime( ((java.util.Date) date).getTime() );
-                        dst.value = org.joda.time.Days.daysBetween(EPOCH, date2).getDays();
-                        if(LOGGER.isDebugEnabled()) LOGGER.debug("date field value:" + date + " " + date.getClass().getName() + " EPOCH = " + EPOCH + " date2 = " + date2 + " dst.value=" + dst.value);
+                    try
+                    {
+                        if (resultSet.getDate(fieldName) != null) {
+                            // dst.value = (int) TimeUnit.MILLISECONDS.toDays(resultSet.getDate(fieldName).getTime());
+                            java.sql.Date date = resultSet.getDate(fieldName);
+                            org.joda.time.DateTime date2 = new org.joda.time.DateTime( ((java.util.Date) date).getTime() );
+                            dst.value = org.joda.time.Days.daysBetween(EPOCH, date2).getDays();
+                            if(LOGGER.isDebugEnabled()) LOGGER.debug("date field value:" + date + " " + date.getClass().getName() + " EPOCH = " + EPOCH + " date2 = " + date2 + " dst.value=" + dst.value);
+                        }
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
                     }
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case DATEMILLI:
                 return (DateMilliExtractor) (Object context, NullableDateMilliHolder dst) ->
                 {
-                    if (resultSet.getTimestamp(fieldName) != null) {
-                        dst.value = resultSet.getTimestamp(fieldName).getTime();
+                    try
+                    {
+                        if (resultSet.getTimestamp(fieldName) != null) {
+                            dst.value = resultSet.getTimestamp(fieldName).getTime();
+                        }
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
                     }
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case VARCHAR:
                 return newVarcharExtractor(resultSet, fieldName, field);
             case VARBINARY:
                 return (VarBinaryExtractor) (Object context, NullableVarBinaryHolder dst) ->
                 {
-                    dst.value = resultSet.getBytes(fieldName);
-                    dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    try
+                    {
+                        dst.value = resultSet.getBytes(fieldName);
+                        dst.isSet = resultSet.wasNull() ? 0 : 1;
+                    }
+                    catch(Exception ex)
+                    {
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
             case LIST:
                 return null; //this indicates that makeFactory will be called.
@@ -320,10 +390,43 @@ public abstract class JdbcRecordHandler
             default:
                 throw new RuntimeException("Unhandled type " + fieldType);
         }
-        } catch(RuntimeException ex) {
-            throw new RuntimeException("Error occured. field=" + fieldName + " type=" + fieldType + " error=" + ex.getMessage(), ex);
-        }
     }
+
+    static private String getResultSetValueInfo(ResultSet resultSet, String fieldName) throws SQLException
+    {
+        StringBuilder s = new StringBuilder();
+        final Object objval = resultSet.getObject(fieldName);
+        s.append("field=");
+        s.append(fieldName);
+        s.append(" objtype=");
+        s.append(objval == null ? "null" : objval.getClass().getName());
+        s.append(" value=");
+        if(objval != null && objval.getClass().isArray())
+        {
+            Object[] ary = (Object[])objval;
+            for(int i = 0; i < ary.length; i++)
+            {
+                if(i > 0)
+                    s.append(",");
+                Object v = ary[i];
+                s.append(i);
+                s.append(":");
+                s.append(String.valueOf(v));
+                s.append(":");
+                s.append(v == null ? "null" : v.getClass().getName());
+                if(i > 3)
+                {
+                    s.append("...");
+                    break;
+                }
+            }
+        }
+        else
+        {
+            s.append(String.valueOf(objval));
+        }
+        return s.toString();
+    } 
 
     /**
      * Since GeneratedRowWriter doesn't yet support complex types (STRUCT, LIST) we use this to
@@ -341,8 +444,16 @@ public abstract class JdbcRecordHandler
     {
         return (Float8Extractor) (Object context, NullableFloat8Holder dst) ->
         {
-            dst.value = resultSet.getDouble(fieldName);
-            dst.isSet = resultSet.wasNull() ? 0 : 1;
+            try
+            {
+                dst.value = resultSet.getDouble(fieldName);
+                dst.isSet = resultSet.wasNull() ? 0 : 1;
+            }
+            catch(Exception ex)
+            {
+                String info = getResultSetValueInfo(resultSet, fieldName);
+                throw new SQLException("Error occured. type=float8 " + info + " error=" + ex.getMessage(), ex);
+            }
         };
 
     }
@@ -351,12 +462,20 @@ public abstract class JdbcRecordHandler
     {
         return (VarCharExtractor) (Object context, NullableVarCharHolder dst) ->
         {
-            Object value = resultSet.getString(fieldName);
-            if(value != null) {
-                dst.value = value.toString();
+            try
+            {
+                Object value = resultSet.getString(fieldName);
+                if(value != null) {
+                    dst.value = value.toString();
+                }
+                dst.isSet = resultSet.wasNull() ? 0 : 1;
             }
-            dst.isSet = resultSet.wasNull() ? 0 : 1;
-        };
+            catch(Exception ex)
+            {
+                String info = getResultSetValueInfo(resultSet, fieldName);
+                throw new SQLException("Error occured. type=varchar " + info + " error=" + ex.getMessage(), ex);
+            }
+};
     }
 
     protected VarCharExtractor newListExtractor(final ResultSet resultSet, final String fieldName, final Field field)
