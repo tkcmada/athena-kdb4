@@ -202,12 +202,27 @@ public abstract class JdbcRecordHandler
         return (FieldVector vector, Extractor extractor, ConstraintProjector constraint) ->
                 (FieldWriter) (Object context, int rowNum) ->
                 {
-                    Array arrayField = ((ResultSet) context).getArray(field.getName());
-                    if (!((ResultSet) context).wasNull()) {
-                        List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
-                        BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                    try{
+                        Array arrayField = ((ResultSet) context).getArray(field.getName());
+                        if (!((ResultSet) context).wasNull()) {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        return true;
                     }
-                    return true;
+                    catch(Exception ex)
+                    {
+                        final ResultSet resultSet = ((ResultSet) context);
+                        final String fieldName = field.getName();
+                        final Object objval = resultSet.getObject(fieldName);
+                        if(objval != null && objval.getClass().isArray())
+                        {
+                            Object[] ary = (Object[])objval;
+
+                        }
+                        String info = getResultSetValueInfo(resultSet, fieldName);
+                        throw new SQLException("Error occured. type=list " + info + " error=" + ex.getMessage(), ex);
+                    }
                 };
     }
 
