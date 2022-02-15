@@ -203,10 +203,20 @@ public abstract class JdbcRecordHandler
                 (FieldWriter) (Object context, int rowNum) ->
                 {
                     try{
-                        Array arrayField = ((ResultSet) context).getArray(field.getName());
-                        if (!((ResultSet) context).wasNull()) {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
+                        Object objary = ((ResultSet) context).getObject(field.getName());
+                        if(objary != null && (objary instanceof Object[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[])objary));
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else
+                        {
+                            LOGGER.info("use ResultSet.getArray " + field.getName());
+                            Array arrayField = ((ResultSet) context).getArray(field.getName());
+                            if (!((ResultSet) context).wasNull()) {
+                                List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
+                                BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                            }
                         }
                         return true;
                     }
