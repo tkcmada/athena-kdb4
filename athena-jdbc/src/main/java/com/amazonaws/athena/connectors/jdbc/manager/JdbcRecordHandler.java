@@ -241,6 +241,12 @@ public abstract class JdbcRecordHandler
                     }
                     catch(Exception ex)
                     {
+                        final Object objval = resultSet.getObject(fieldName);
+                        if(objval != null && objval.getClass().isArray())
+                        {
+                            Object[] ary = (Object[])objval;
+
+                        }
                         String info = getResultSetValueInfo(resultSet, fieldName);
                         throw new SQLException("Error occured. type=" + fieldType + " " + info + " error=" + ex.getMessage(), ex);
                     }
@@ -400,9 +406,9 @@ public abstract class JdbcRecordHandler
         s.append(fieldName);
         s.append(" objtype=");
         s.append(objval == null ? "null" : objval.getClass().getName());
-        s.append(" value=");
-        if(objval != null && objval.getClass().isArray())
+        if(objval instanceof Object[])
         {
+            s.append(" value(ary)=");
             Object[] ary = (Object[])objval;
             for(int i = 0; i < ary.length; i++)
             {
@@ -420,9 +426,12 @@ public abstract class JdbcRecordHandler
                     break;
                 }
             }
+            s.append(" len=");
+            s.append(ary.length);
         }
         else
         {
+            s.append(" value(obj)=");
             s.append(String.valueOf(objval));
         }
         return s.toString();
