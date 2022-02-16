@@ -209,57 +209,92 @@ public abstract class JdbcRecordHandler
                             List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[])objary));
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
-                        /*
                         else if(objary != null && (objary instanceof double[]))
                         {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((double[])objary));
+
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((double[])objary)); //this doesn't work
+                            double[] a = (double[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(double v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else if(objary != null && (objary instanceof float[]))
                         {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((float[])objary));
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((float[])objary));
+                            float[] a = (float[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(float v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else if(objary != null && (objary instanceof short[]))
                         {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((short[])objary));
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((short[])objary));
+                            short[] a = (short[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(short v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else if(objary != null && (objary instanceof long[]))
                         {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((long[])objary));
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((long[])objary));
+                            final long[] a = (long[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(long v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else if(objary != null && (objary instanceof int[]))
                         {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((int[])objary));
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((int[])objary));
+                            final int[] a = (int[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(int v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else if(objary != null && (objary instanceof byte[]))
                         {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((byte[])objary));
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((byte[])objary));
+                            final byte[] a = (byte[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(byte v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else if(objary != null && (objary instanceof boolean[]))
                         {
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((boolean[])objary));
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((boolean[])objary));
+                            final boolean[] a = (boolean[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(boolean v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else if(objary != null && (objary instanceof char[]))
                         {
                             LOGGER.warn("field " + field.getName() + " got char[]");
-                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((char[])objary));
+                            // List<Object> fieldValue = new ArrayList<>(Arrays.asList((char[])objary));
+                            final char[] a = (char[])objary;
+                            List<Object> fieldValue = new ArrayList<>();
+                            for(char v : a)
+                                fieldValue.add(v);
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
-                        */
                         else
                         {
-                            Array arrayField = ((ResultSet) context).getArray(field.getName());
-                            if (!((ResultSet) context).wasNull()) {
-                                List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
-                                BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
-                            }
+                            throw new SQLException(unkown type);
                         }
+                        // else
+                        // {
+                        //     Array arrayField = ((ResultSet) context).getArray(field.getName()); //even double[] field, this cause exception
+                        //     if (!((ResultSet) context).wasNull()) {
+                        //         List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
+                        //         BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        //     }
+                        // }
                         return true;
                     }
                     catch(Exception ex)
