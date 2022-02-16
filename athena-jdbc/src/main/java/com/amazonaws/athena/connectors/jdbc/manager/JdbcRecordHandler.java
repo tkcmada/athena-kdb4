@@ -204,9 +204,50 @@ public abstract class JdbcRecordHandler
                 {
                     try{
                         Object objary = ((ResultSet) context).getObject(field.getName());
-                        if(objary != null && (objary instanceof Object[]))
+                        if(objary != null && (objary instanceof String[]))
                         {
                             List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof double[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((double[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof float[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((float[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof short[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((short[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof long[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((long[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof int[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((int[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof byte[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((byte[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof boolean[]))
+                        {
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((boolean[])objary));
+                            BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
+                        }
+                        else if(objary != null && (objary instanceof char[]))
+                        {
+                            LOGGER.warn("field " + field.getName() + " got char[]");
+                            List<Object> fieldValue = new ArrayList<>(Arrays.asList((char[])objary));
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
                         else
@@ -224,12 +265,6 @@ public abstract class JdbcRecordHandler
                     {
                         final ResultSet resultSet = ((ResultSet) context);
                         final String fieldName = field.getName();
-                        final Object objval = resultSet.getObject(fieldName);
-                        if(objval != null && objval.getClass().isArray())
-                        {
-                            Object[] ary = (Object[])objval;
-
-                        }
                         String info = getResultSetValueInfo(resultSet, fieldName);
                         throw new SQLException("Error occured. type=list " + info + " error=" + ex.getMessage(), ex);
                     }
