@@ -209,6 +209,7 @@ public abstract class JdbcRecordHandler
                             List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[])objary));
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
+                        /*
                         else if(objary != null && (objary instanceof double[]))
                         {
                             List<Object> fieldValue = new ArrayList<>(Arrays.asList((double[])objary));
@@ -250,9 +251,9 @@ public abstract class JdbcRecordHandler
                             List<Object> fieldValue = new ArrayList<>(Arrays.asList((char[])objary));
                             BlockUtils.setComplexValue(vector, rowNum, FieldResolver.DEFAULT, fieldValue);
                         }
+                        */
                         else
                         {
-                            LOGGER.info("use ResultSet.getArray " + field.getName());
                             Array arrayField = ((ResultSet) context).getArray(field.getName());
                             if (!((ResultSet) context).wasNull()) {
                                 List<Object> fieldValue = new ArrayList<>(Arrays.asList((Object[]) arrayField.getArray()));
