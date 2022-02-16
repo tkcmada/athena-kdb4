@@ -248,10 +248,8 @@ public class KdbMetadataHandler
                     Character coltypeobj = (Character) rs.getObject("COLUMN_TYPE");
                     LOGGER.info("schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
                     if(coltypeobj == null) {
-                        //throw new IllegalArgumentException("Cannot perform query because column " + colname + " has null COLUMN_TYPE. " + "table " + kdbTableName);
-                        // LOGGER.info("assuming this col type is list of list of char");
-                        // coltypeobj = 'V';
-                        coltypeobj = ' ';
+                        LOGGER.info("kdb+ type is unknown for column '" + colname + "' so assuming this col type is list of char(C)");
+                        coltypeobj = 'C'; // fyi. 'C' is list of char , 'V' is list of list of char
                     }
                     coltype.put(colname, coltypeobj);
                 }
