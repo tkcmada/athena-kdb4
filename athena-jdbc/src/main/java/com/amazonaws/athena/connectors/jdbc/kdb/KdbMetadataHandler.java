@@ -95,6 +95,7 @@ public class KdbMetadataHandler
     public static final String SCHEMA_NOWHEREONDATEPUSHDOWN_KEY = "nowhereondatepushdown";
     public static final String SCHEMA_WHEREPUSHDOWN_KEY = "wherepushdown";
     public static final String SCHEMA_DATEFIELD_KEY = "datefield";
+    public static final String IGNORE_UNKNOWN_TYPE_KEY = "ignore_unknown_type";
 
     private static boolean isListMappedToArray = true;
 
@@ -248,8 +249,9 @@ public class KdbMetadataHandler
                     LOGGER.info("schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
                     if(coltypeobj == null) {
                         //throw new IllegalArgumentException("Cannot perform query because column " + colname + " has null COLUMN_TYPE. " + "table " + kdbTableName);
-                        LOGGER.info("assuming this col type is list of list of char");
-                        coltypeobj = 'V';
+                        // LOGGER.info("assuming this col type is list of list of char");
+                        // coltypeobj = 'V';
+                        coltypeobj = ' ';
                     }
                     coltype.put(colname, coltypeobj);
                 }
@@ -340,10 +342,12 @@ public class KdbMetadataHandler
                     //Athena doesn't support DATENANO so map to VARCHAR for now
                     schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.timestamp_type));
                     break;
-                // case 't': //time //Athena doesn't support TIMEMILL
-                //     //Jdbc automatically map this column to java.sql.Time which has only sec precision
+                case 't': //time //Athena doesn't support TIMEMILL
+                    //Jdbc automatically map this column to java.sql.Time which has only sec precision
                 //     schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.time_type));
-                //     break;
+                    //just map to VARCHAR for now
+                    schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.timespan_type));
+                    break;
                 case 'n': //timespan //Athena doesn't support TIMENANO
                     //just map to VARCHAR for now
                     schemaBuilder.addField(newField(colname, Types.MinorType.VARCHAR, KdbTypes.timespan_type));
@@ -422,7 +426,15 @@ public class KdbMetadataHandler
                     }
                     break;
                 default:
-                    LOGGER.error("getSchema: Unable to map type for column[" + colname + "] to a supported type, attempted '" + coltype + "'");
+                    String ignore = Objects.toString(System.getenv(IGNORE_UNKNOWN_TYPE_KEY), "").trim();
+                    if(ignore.equals("true"))
+                    {
+                        LOGGER.warn("getSchema: Unable to map type for column[" + colname + "] to a supported type, attempted '" + coltype + "'");
+                    }
+                    else
+                    {
+                        throw new IllegalArgumentException("Unknown kdb column type " + coltype + " for column " + colname);
+                    }
             }
         }
 // q)(2i;2.3;`qwe;2000.01.02;12:34:56.000;2000.01.02D12:34:56.000000000)

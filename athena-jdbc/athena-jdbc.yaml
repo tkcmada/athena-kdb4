@@ -88,6 +88,7 @@ Resources:
           funcfile_s3keys: !Ref KdbFuncDeclareS3Keys
           connector_properties: !Ref ConnectorProperties
           table_cache_string: !Ref KdbTableCacheString
+          ignore_unknown_type: 'false'
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-2021.51.1.jar"

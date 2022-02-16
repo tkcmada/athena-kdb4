@@ -285,7 +285,7 @@ public abstract class JdbcRecordHandler
                         }
                         else
                         {
-                            throw new SQLException(unkown type);
+                            throw new SQLException("unknown type " + field.getName() + " " + (objary == null ? "null" : objary.getClass().getName()));
                         }
                         // else
                         // {
