@@ -49,6 +49,8 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.slf4j.LoggerFactory;
 
+import redis.clients.jedis.Jedis;
+
 import java.io.*;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -96,11 +98,18 @@ public class KdbMetadataHandler
     public static final String SCHEMA_WHEREPUSHDOWN_KEY = "wherepushdown";
     public static final String SCHEMA_DATEFIELD_KEY = "datefield";
     public static final String IGNORE_UNKNOWN_TYPE_KEY = "ignore_unknown_type";
+    public static final String REDIS_HOST_KEY = "REDIS_HOST";
+    public static final String REDIS_PORT_KEY = "REDIS_PORT";
+    public static final String FORCE_UPDATE_CACHE_KEY = "REDIS_CACHE_FORCE_UPDATE";
+    public static final String REDIS_TABLE_SCHEME_CACHE_PREFIX = "KdbJdbcAthenaConnector:v1:tables:";
 
     private static boolean isListMappedToArray = true;
 
     public static boolean isListMappedToArray() { return isListMappedToArray; }
     public static void setListMappedToArray(boolean value) { isListMappedToArray = value; }
+
+    private Jedis jedis;
+    private boolean force_update_cache = false;
     
     /**
      * Instantiates handler to be used by Lambda function directly.
@@ -118,6 +127,7 @@ public class KdbMetadataHandler
     public KdbMetadataHandler(final DatabaseConnectionConfig databaseConnectionConfig)
     {
         super(databaseConnectionConfig, new GenericJdbcConnectionFactory(databaseConnectionConfig, JDBC_PROPERTIES));
+        createRedisClient();
     }
 
     @VisibleForTesting
@@ -125,6 +135,27 @@ public class KdbMetadataHandler
             AmazonAthena athena, final JdbcConnectionFactory jdbcConnectionFactory)
     {
         super(databaseConnectionConfig, secretsManager, athena, jdbcConnectionFactory);
+        createRedisClient();
+    }
+
+    private void createRedisClient()
+    {
+        String redishost = Objects.toString(System.getenv(REDIS_HOST_KEY), "").trim();
+        String redisport = Objects.toString(System.getenv(REDIS_PORT_KEY), "").trim();
+        LOGGER.info("redis=", redishost + ":" + redisport);
+        if(redishost.isEmpty() || redisport.isEmpty())
+        {
+            LOGGER.info("no redis is specified.");
+            return;
+        }
+        try{
+            jedis = new Jedis(redishost, Integer.parseInt(redisport));
+        }
+        catch(NumberFormatException ex)
+        {
+            throw new IllegalArgumentException("Failed to parse Redis port into integer. Invalid port num=" + redisport);
+        }
+        force_update_cache = "true".equals(System.getenv(FORCE_UPDATE_CACHE_KEY));
     }
 
     @Override
@@ -226,6 +257,7 @@ public class KdbMetadataHandler
 
     Map<String, Character> getColumnAndType(final Connection jdbcConnection, final String kdbTableName) throws SQLException
     {
+        LOGGER.info("getColumnAndType..." + kdbTableName);
         cacheTableSchema();
         for(String key : tableSchemaCache.keySet())
         {
@@ -233,6 +265,26 @@ public class KdbMetadataHandler
             {
                 LOGGER.info("table schema cache hit. " + key);
                 return tableSchemaCache.get(key);
+            }
+        }
+        if(jedis != null)
+        {
+            LOGGER.info("redis is on.");
+            if(force_update_cache)
+            {
+                LOGGER.info("force update cache is on, so won't get table schema from redis.");
+            }
+            else
+            {
+                String col_and_types = jedis.get(REDIS_TABLE_SCHEME_CACHE_PREFIX + kdbTableName);
+                if(col_and_types != null)
+                {
+                    LOGGER.info("got from cache. " + col_and_types);
+                    final Map<String, Character> coltypes = createSingleTableSchemaFromString(col_and_types); 
+                    LOGGER.info("got from cache. parsed. " + coltypes);
+                    return coltypes;
+                }
+                LOGGER.info("no cache. " + kdbTableName);
             }
         }
         LOGGER.info("no table schema cache hit.");
@@ -254,6 +306,12 @@ public class KdbMetadataHandler
                     coltype.put(colname, coltypeobj);
                 }
             }
+        }
+        if(jedis != null)
+        {
+            String serstr = serializeTableSchema(coltype);
+            LOGGER.info("setting on redis. " + REDIS_TABLE_SCHEME_CACHE_PREFIX + kdbTableName + "=" + serstr);
+            jedis.set(REDIS_TABLE_SCHEME_CACHE_PREFIX + kdbTableName, serstr);
         }
         return coltype;
     }
@@ -279,19 +337,40 @@ public class KdbMetadataHandler
         {
             String[] tbl_col_type_ary = tbl_col_type.split("=", 2);
             String tblname = tbl_col_type_ary[0];
-            LinkedHashMap<String, Character> coltypes = new LinkedHashMap<>();
-            for(String col_type : tbl_col_type_ary[1].split(","))
-            {
-                String[] col_type_ary = col_type.split(":", 2);
-                String colname = col_type_ary[0];
-                char   coltype = col_type_ary[1].charAt(0);
-                coltypes.put(colname, coltype);
-            }
+            String col_and_types = tbl_col_type_ary[1];
+            final Map<String, Character> coltypes = createSingleTableSchemaFromString(col_and_types);
             map.put(tblname, coltypes);
             LOGGER.info("adding table schema cache. " + tblname + "=" + coltypes);
         }
         LOGGER.info("result table cache=" + map);
         return map;
+    }
+
+    static Map<String, Character> createSingleTableSchemaFromString(final String col_and_types)
+    {
+        LinkedHashMap<String, Character> coltypes = new LinkedHashMap<>();
+        for(String col_type : col_and_types.split(","))
+        {
+            String[] col_type_ary = col_type.split(":", 2);
+            String colname = col_type_ary[0];
+            char   coltype = col_type_ary[1].charAt(0);
+            coltypes.put(colname, coltype);
+        }
+        return coltypes;
+    }
+
+    static String serializeTableSchema(final Map<String, Character> coltypes)
+    {
+        StringBuilder b = new StringBuilder();
+        for(Entry<String, Character> e : coltypes.entrySet())
+        {
+            if(b.length() > 0)
+                b.append(",");
+            b.append(e.getKey());
+            b.append(":");
+            b.append(e.getValue());
+        }
+        return b.toString();
     }
 
     SchemaBuilder getSchema(final Connection jdbcConnection, final String kdbTableName) throws SQLException

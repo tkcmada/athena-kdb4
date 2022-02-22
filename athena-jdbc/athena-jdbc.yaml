@@ -72,6 +72,19 @@ Parameters:
     Description: '(Optional) Specify table schema column name and kdb column type. i.e. tblA=col1:b,col2:c/tblB=col3:f,col4:g'
     Default: ''
     Type: String
+  RedisHost:
+    Description: '(Optional) Redis host for cache table schema'
+    Default: ''
+    Type: String
+  RedisPort:
+    Description: '(Optional) Redis port for cache table schema'
+    Default: ''
+    Type: String
+    AllowedPattern: ^[0-9]*$
+  RedisCacheForceUpdate:
+    Description: '(Optional) if true, always get table schema by executing q-script'
+    Default: 'false'
+    Type: String
 Resources:
   JdbcConnectorConfig:
     Type: 'AWS::Serverless::Function'
@@ -89,6 +102,9 @@ Resources:
           connector_properties: !Ref ConnectorProperties
           table_cache_string: !Ref KdbTableCacheString
           ignore_unknown_type: 'false'
+          REDIS_HOST: !Ref RedisHost
+          REDIS_PORT: !Ref RedisPort
+          REDIS_CACHE_FORCE_UPDATE: !Ref RedisCacheForceUpdate
       FunctionName: !Ref LambdaFunctionName
       Handler: "com.amazonaws.athena.connectors.jdbc.MultiplexingJdbcCompositeHandler"
       CodeUri: "./target/athena-jdbc-2021.51.1.jar"
