@@ -791,8 +791,11 @@ public class KdbQueryStringBuilder
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
+                LOGGER.info("toPredicate " + column.getName() + " valueSet=" + valueSet);
                 if (valueSet != null) {
-                    conjuncts.add(toPredicate(column.getName(), column, valueSet, type, accumulator));
+                    String pred = toPredicate(column.getName(), column, valueSet, type, accumulator);
+                    LOGGER.info("toPredicate " + column.getName() + " predicate=" + pred);
+                    conjuncts.add(pred);
                 }
             }
         }
@@ -857,22 +860,37 @@ public class KdbQueryStringBuilder
 
         if (valueSet instanceof SortedRangeSet) {
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
+                LOGGER.info(columnName + ":null");
                 return toPredicateNull(columnName, column, type, accumulator);
             }
 
             // we don't need to add disjunction(OR (colname IS NULL)) because
             if (valueSet.isNullAllowed()) {
+                LOGGER.info(columnName + ":isNullAllowed=true");
                 disjuncts.add(toPredicateNull(columnName, column, type, accumulator));
             }
 
             Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
                 //probably this is typo and meant "valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()" ?
+                LOGGER.info(columnName + ":isNullAllowed()=false, getLow().isLowerUnbounded()=true, getHigh().isUpperUnbounded()=true");
                 return toPredicateNull(columnName, column, type, accumulator);
             }
 
+            int k = 0;
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
+                LOGGER.info(columnName + ":" + k 
+                    + ":isSingleValue=" + range.isSingleValue() 
+                    + ",low.bound=" + range.getLow().getBound()
+                    + ",low.isLowerUnbounded=" + range.getLow().isLowerUnbounded()
+                    + ",low.value=" + range.getLow().getValue() 
+                    + ",high.bound=" + range.getHigh().getBound()
+                    + ",high.isUpperUnbounded=" + range.getHigh().isUpperUnbounded()
+                    + ",high.value=" + range.getHigh().getValue() 
+                    );
+
                 if (range.isSingleValue()) {
+                    LOGGER.info(columnName + ":" + k + ":isSingleValue()=true,getLow().getValue()=" + range.getLow().getValue());
                     singleValues.add(range.getLow().getValue());
                 }
                 else {
@@ -926,6 +944,7 @@ public class KdbQueryStringBuilder
                     }
                     disjuncts.add(rngsql.toString());
                 }
+                k++;
             }
 
             // Add back all of the possible single values either as an equality or an IN predicate
