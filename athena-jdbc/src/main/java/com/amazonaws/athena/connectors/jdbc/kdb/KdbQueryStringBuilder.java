@@ -438,7 +438,7 @@ public class KdbQueryStringBuilder
         {
             return new DateCriteria(timestampToDateValue(range.getLow().getValue()), timestampToDateValue(range.getLow().getValue()));
         }
-        else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
+        else if (!range.getLow().isLowerUnbounded() && (range.getLow().getBound() == Bound.EXACTLY || range.getLow().getBound() == Bound.ABOVE) && !range.getHigh().isUpperUnbounded() && (range.getHigh().getBound() == Bound.EXACTLY || range.getHigh().getBound() == Bound.BELOW)) {
             return new DateCriteria(timestampToDateValue(range.getLow().getValue()), timestampToDateValue(range.getHigh().getValue()));
         }
         else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && range.getHigh().isUpperUnbounded()) {
