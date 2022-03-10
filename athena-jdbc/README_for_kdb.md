@@ -9,7 +9,7 @@ mvn -o -llr clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 
 How to mvn test?
 ```
-mvn -o -llr test -Dcheckstyle.skip '-Dtest=Kdb*Test'
+mvn -o -llr clean test -Dcheckstyle.skip '-Dtest=Kdb*Test'
 ```
 You should ignore any failure/error in packages other than kdb.
 
