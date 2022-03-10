@@ -225,7 +225,7 @@ public class KdbQueryStringBuilder
             LOGGER.info("1 get from property for timestampfield=" + String.valueOf(timestampfield));
             if(timestampfield == null || timestampfield.isEmpty())
                 timestampfield = "time";
-            LOGGER.info("2 timestampfield=" + timestampfield);
+            LOGGER.info("2 timestampfield(lower case)=" + timestampfield);
             timestampfield = KdbMetadataHandler.athenaTableNameToKdbTableName(timestampfield);
             LOGGER.info("3 timestampfield=" + timestampfield);
             final ValueSet timestamp_valueset = (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) ? constraints.getSummary().get(timestampfield) : null;
