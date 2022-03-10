@@ -791,8 +791,8 @@ public class KdbQueryStringBuilder
             ArrowType type = column.getType();
             if (constraints.getSummary() != null && !constraints.getSummary().isEmpty()) {
                 ValueSet valueSet = constraints.getSummary().get(column.getName());
-                LOGGER.info("toPredicate " + column.getName() + " valueSet=" + valueSet);
                 if (valueSet != null) {
+                    LOGGER.info("toPredicate " + column.getName() + " valueSet=" + valueSet);
                     String pred = toPredicate(column.getName(), column, valueSet, type, accumulator);
                     LOGGER.info("toPredicate " + column.getName() + " predicate=" + pred);
                     conjuncts.add(pred);
