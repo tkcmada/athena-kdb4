@@ -441,7 +441,7 @@ public class KdbQueryStringBuilder
         else if (!range.getLow().isLowerUnbounded() && (range.getLow().getBound() == Bound.EXACTLY || range.getLow().getBound() == Bound.ABOVE) && !range.getHigh().isUpperUnbounded() && (range.getHigh().getBound() == Bound.EXACTLY || range.getHigh().getBound() == Bound.BELOW)) {
             return new DateCriteria(timestampToDateValue(range.getLow().getValue()), timestampToDateValue(range.getHigh().getValue()));
         }
-        else if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && range.getHigh().isUpperUnbounded()) {
+        else if (!range.getLow().isLowerUnbounded() && (range.getLow().getBound() == Bound.EXACTLY || range.getLow().getBound() == Bound.ABOVE) && range.getHigh().isUpperUnbounded()) {
             //assume upper bound is today
             int days_today = getDaysOf(upperdate);
             return new DateCriteria(timestampToDateValue(range.getLow().getValue()), days_today);
