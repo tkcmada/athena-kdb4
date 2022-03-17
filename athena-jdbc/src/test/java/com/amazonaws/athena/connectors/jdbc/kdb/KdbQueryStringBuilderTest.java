@@ -123,7 +123,7 @@ public class KdbQueryStringBuilderTest
         Assert.assertEquals("0(1970.01.01)-1(1970.01.02)", KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(0, 5), 3, 0).toString());
         Assert.assertEquals("2(1970.01.03)-3(1970.01.04)", KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(0, 5), 3, 1).toString());
         Assert.assertEquals("4(1970.01.05)-5(1970.01.06)", KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(0, 5), 3, 2).toString());
-        
+
         try
         {
             KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(0, 0), 2, 0);
@@ -132,6 +132,14 @@ public class KdbQueryStringBuilderTest
         catch(SkipQueryException expected) {}
         Assert.assertEquals("0(1970.01.01)-0(1970.01.01)", KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(0, 0), 2, 1).toString());
 
+        //avoid sun
+        Assert.assertEquals("2(1970.01.03)-3(1970.01.04)", KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(3, 3), 1, 0).toString());
+
+        Assert.assertEquals("2(1970.01.03)-2(1970.01.03)", KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(3, 3), 2, 0).toString());
+        try {
+            KdbQueryStringBuilder.getDateRangeParallelQuery(new DateCriteria(3, 3), 2, 1).toString();
+            Assert.fail("skip exception expected");
+        } catch(SkipQueryException expected) {}
     }
 
     @Test

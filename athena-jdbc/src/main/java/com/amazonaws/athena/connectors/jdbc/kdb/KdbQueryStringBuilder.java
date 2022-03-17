@@ -329,11 +329,21 @@ public class KdbQueryStringBuilder
     public static class DateCriteria {
         public final int from_day;
         public final int to_day;
+        public final boolean AVOID_SUN = true;
 
         public DateCriteria(int from_day, int to_day)
         {
-            this.from_day = from_day;
+            if(AVOID_SUN && isSun(from_day))
+                this.from_day = from_day - 1;
+            else
+                this.from_day = from_day;
             this.to_day   = to_day;
+        }
+
+        public static boolean isSun(int days_from_epoch)
+        {
+            //EPOCH(1970-01-01) is thursday, so mod 7 == 3 means Sunday.
+            return (days_from_epoch % 7) == 3;
         }
         
         public String getFromDate() {
@@ -342,6 +352,10 @@ public class KdbQueryStringBuilder
         
         public String getToDate() {
             return KdbQueryStringBuilder.toLiteral(to_day, MinorType.DATEDAY, null);
+        }
+
+        public int getNumberOfDays() {
+            return to_day - from_day + 1;
         }
         
         @Override
@@ -478,7 +492,7 @@ public class KdbQueryStringBuilder
 
     static public DateCriteria getDateRangeParallelQuery(DateCriteria daterange, int total_partitions, int partition_idx)
     {
-        int days = daterange.to_day - daterange.from_day + 1;
+        int days = daterange.getNumberOfDays();
         int[] a = getDateRangeParallelQuery(days, total_partitions);
         LOGGER.info("days assignment {}", Arrays.toString(a));
         int fromday = daterange.from_day;
@@ -488,7 +502,11 @@ public class KdbQueryStringBuilder
             {
                 if(a[i] == 0)
                     throw new SkipQueryException("skip query as no assigned query at partition_idx=" + partition_idx);
-                return new DateCriteria(fromday, fromday + a[i] - 1);
+                int to_day = fromday + a[i] - 1;
+                DateCriteria dc = new DateCriteria(fromday, to_day);
+                if(daterange.AVOID_SUN && fromday == to_day && DateCriteria.isSun(fromday))
+                    throw new SkipQueryException("skip query as assgined parition only contains Sunday. partition_idx=" + partition_idx + " , " + dc);
+                return dc;
             }
             else
                 fromday += a[i];
@@ -507,7 +525,7 @@ public class KdbQueryStringBuilder
         int n = 0;
         for(int i = 0; i < total_partitions; i++)
         {
-            if(i == total_partitions - 1)
+            if(i == total_partitions - 1) //assign all remaining at last partition
                 a[i] = days - n;
             else
             {
