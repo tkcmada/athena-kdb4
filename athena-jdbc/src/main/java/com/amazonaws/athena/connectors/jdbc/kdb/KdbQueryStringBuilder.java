@@ -897,14 +897,14 @@ public class KdbQueryStringBuilder
 
             int k = 0;
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
-                LOGGER.info(columnName + ":" + k 
-                    + ":isSingleValue=" + range.isSingleValue() 
+                LOGGER.info(columnName + ":valueSet.ranges.orderedRanges[" + k + "]="
+                    + "isSingleValue=" + range.isSingleValue() 
                     + ",low.bound=" + range.getLow().getBound()
                     + ",low.isLowerUnbounded=" + range.getLow().isLowerUnbounded()
-                    + ",low.value=" + range.getLow().getValue() 
+                    + ",low.value=" + (range.getLow().isNullValue() ? "null" : range.getLow().getValue())
                     + ",high.bound=" + range.getHigh().getBound()
                     + ",high.isUpperUnbounded=" + range.getHigh().isUpperUnbounded()
-                    + ",high.value=" + range.getHigh().getValue() 
+                    + ",high.value=" + (range.getHigh().isNullValue() ? "null" : range.getHigh().getValue())
                     );
 
                 if (range.isSingleValue()) {
