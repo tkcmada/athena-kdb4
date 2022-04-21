@@ -304,6 +304,11 @@ public class KdbMetadataHandler
                         coltypeobj = 'C';
                         LOGGER.info("override. schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
                     }
+                    if(kdbTableName.contains(".athena.get_mosaic_data_sw") && colname.equals("timeToTrade"))
+                    {
+                        coltypeobj = 'C';
+                        LOGGER.info("override. schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
+                    }
                     if(coltypeobj == null) {
                         LOGGER.info("kdb+ type is unknown for column '" + colname + "' so assuming this col type is list of char(C)");
                         coltypeobj = 'C'; // fyi. 'C' is list of char , 'V' is list of list of char
