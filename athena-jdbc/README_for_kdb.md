@@ -61,7 +61,7 @@ kdb://jdbc:kdb:<ip>:<port>?user=<user>&password=<password>
 ```
 
 (upstream only)
-How to prepare offline build(only upstream side is required)
+First time to setup workspace
 or
 If you see error message "Could not resolve dependencies for project com.amazonaws:athena-jdbc:jar:1.0: Could not find artifact com.kx:jdbc:jar:0.1 in redshift (https://s3.amazonaws.com/redshift-maven-repository/release)"
 ```
@@ -74,26 +74,8 @@ mvn clean install -DskipTests -Dmaven.test.skip
 cd ../athena-jdbc
 mvn clean install -DskipTests -Dmaven.test.skip -Dcheckstyle.skip
 cd ..
-cp -rp /workspace/m2-repository/* .m2/repository/
+cp -nrp /workspace/m2-repository/* .m2/repository/
 find .m2/repository -type f -and -not -name "*.jar" -and -not -name "*.pom"  -and -not -name "*.xml" | xargs rm -v
-```
-
-(upstream only)To compact git objects size(well, actually doesn't help a lot)
-```
-du -sh .git/objects
-git filter-branch --tree-filter "rm -f -r .m2/repository/" HEAD
-git \
-  -c gc.pruneExpire=now \
-  -c gc.worktreePruneExpire=now \
-  -c gc.reflogExpire=now \
-  -c gc.reflogExpireUnreachable=now \
-  -c gc.rerereResolved=now \
-  -c gc.rerereUnResolved=now \
-  gc --aggressive
-du -sh .git/objects
-
-git remote set-url origin <new url>
-git push  
 ```
 
 (upstream only)To fetch and merge from upstream
