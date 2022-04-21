@@ -258,7 +258,6 @@ public class KdbMetadataHandler
     Map<String, Character> getColumnAndType(final Connection jdbcConnection, final String kdbTableName) throws SQLException
     {
         LOGGER.info("getColumnAndType..." + kdbTableName);
-        cacheTableSchema();
         for(String key : tableSchemaCache.keySet())
         {
             if(kdbTableName.contains(key))
@@ -299,15 +298,19 @@ public class KdbMetadataHandler
                     String colname = rs.getString("COLUMN_NAME");
                     Character coltypeobj = (Character) rs.getObject("COLUMN_TYPE");
                     LOGGER.info("schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
-                    if(kdbTableName.contains(".athena.get_mosaic_data_sw") && colname.equals("done"))
+                    //override if given
+                    for(Entry<String, Map<String, Character>> e : override.entrySet())
                     {
-                        coltypeobj = 'C';
-                        LOGGER.info("override. schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
-                    }
-                    if(kdbTableName.contains(".athena.get_mosaic_data_sw") && colname.equals("timeToTrade"))
-                    {
-                        coltypeobj = 'C';
-                        LOGGER.info("override. schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
+                        if(kdbTableName.contains(e.getKey())) //tableName
+                        {
+                            Character newColTypeObj = e.getValue().get(colname);
+                            if(newColTypeObj != null)
+                            {
+                                coltypeobj = 'C';
+                                LOGGER.info("override coltype is found. schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
+                                break;
+                            }
+                        }                        
                     }
                     if(coltypeobj == null) {
                         LOGGER.info("kdb+ type is unknown for column '" + colname + "' so assuming this col type is list of char(C)");
@@ -326,18 +329,34 @@ public class KdbMetadataHandler
         return coltype;
     }
 
-    private static final HashMap<String, Map<String, Character>> tableSchemaCache = new HashMap<>();
-
-    static void cacheTableSchema()
+    private static final HashMap<String, Map<String, Character>> overrideColtype;
+    static
     {
+        LOGGER.info("chaching overrideColtype...");
+        String str = Objects.toString(System.getenv("coltype_override_string"), "").trim();
+        LOGGER.info("coltype_override_string env var = " + str);
+        if(str.isEmpty())
+        {
+            LOGGER.info("no override coltype given");
+            return;
+        }
+        overrideColtype = createTableSchemaFromString(str);
+        LOGGER.info("chaching overrideColtype...done " + overrideColtype);
+    }
+
+    private static final HashMap<String, Map<String, Character>> tableSchemaCache;
+    static
+    {
+        LOGGER.info("chaching tableSchemaCache...");
         String str = Objects.toString(System.getenv("table_cache_string"), "").trim();
-        LOGGER.info("TABLE_SCHEMA_CACHE env var = " + str);
+        LOGGER.info("table_cache_string env var = " + str);
         if(str.isEmpty())
         {
             LOGGER.info("no table schema cache given");
             return;
         }
-        tableSchemaCache.putAll(createTableSchemaFromString(str));
+        tableSchemaCache = createTableSchemaFromString;
+        LOGGER.info("chaching tableSchemaCache...done " + tableSchemaCache);
     }
 
     static Map<String, Map<String, Character>> createTableSchemaFromString(String str)

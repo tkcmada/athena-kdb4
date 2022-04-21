@@ -72,6 +72,10 @@ Parameters:
     Description: '(Optional) Specify table schema column name and kdb column type. i.e. tblA=col1:b,col2:c/tblB=col3:f,col4:g'
     Default: ''
     Type: String
+  KdbTypeOverideString:
+    Description: '(Optional) Override kdb column type for specific table name and column name. i.e. tblA=col1:b,col2:c/tblB=col3:f'
+    Default: ''
+    Type: String
   RedisHost:
     Description: '(Optional) Redis host for cache table schema'
     Default: ''
@@ -101,6 +105,7 @@ Resources:
           funcfile_s3keys: !Ref KdbFuncDeclareS3Keys
           connector_properties: !Ref ConnectorProperties
           table_cache_string: !Ref KdbTableCacheString
+          coltype_override_string: !Ref KdbTypeOverideString
           ignore_unknown_type: 'false'
           REDIS_HOST: !Ref RedisHost
           REDIS_PORT: !Ref RedisPort
