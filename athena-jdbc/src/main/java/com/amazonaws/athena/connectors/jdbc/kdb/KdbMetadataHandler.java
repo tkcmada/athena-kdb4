@@ -299,7 +299,7 @@ public class KdbMetadataHandler
                     Character coltypeobj = (Character) rs.getObject("COLUMN_TYPE");
                     LOGGER.info("schema column mapping..." + colname + " " + String.valueOf(coltypeobj));
                     //override if given
-                    for(Entry<String, Map<String, Character>> e : override.entrySet())
+                    for(Entry<String, Map<String, Character>> e : overrideColtype.entrySet())
                     {
                         if(kdbTableName.contains(e.getKey())) //tableName
                         {
@@ -329,7 +329,7 @@ public class KdbMetadataHandler
         return coltype;
     }
 
-    private static final HashMap<String, Map<String, Character>> overrideColtype;
+    private static final Map<String, Map<String, Character>> overrideColtype;
     static
     {
         LOGGER.info("chaching overrideColtype...");
@@ -338,13 +338,16 @@ public class KdbMetadataHandler
         if(str.isEmpty())
         {
             LOGGER.info("no override coltype given");
-            return;
+            overrideColtype = new HashMap<String, Map<String, Character>>();
         }
-        overrideColtype = createTableSchemaFromString(str);
-        LOGGER.info("chaching overrideColtype...done " + overrideColtype);
+        else
+        {
+            overrideColtype = createTableSchemaFromString(str);
+            LOGGER.info("chaching overrideColtype...done " + overrideColtype);
+        }
     }
 
-    private static final HashMap<String, Map<String, Character>> tableSchemaCache;
+    private static final Map<String, Map<String, Character>> tableSchemaCache;
     static
     {
         LOGGER.info("chaching tableSchemaCache...");
@@ -353,10 +356,13 @@ public class KdbMetadataHandler
         if(str.isEmpty())
         {
             LOGGER.info("no table schema cache given");
-            return;
+            tableSchemaCache = new HashMap<String, Map<String, Character>>();
         }
-        tableSchemaCache = createTableSchemaFromString;
-        LOGGER.info("chaching tableSchemaCache...done " + tableSchemaCache);
+        else
+        {
+            tableSchemaCache = createTableSchemaFromString(str);
+            LOGGER.info("chaching tableSchemaCache...done " + tableSchemaCache);
+        }
     }
 
     static Map<String, Map<String, Character>> createTableSchemaFromString(String str)
