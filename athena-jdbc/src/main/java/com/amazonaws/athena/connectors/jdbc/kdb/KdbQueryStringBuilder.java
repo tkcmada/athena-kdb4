@@ -976,7 +976,7 @@ public class KdbQueryStringBuilder
                 int count = 0;
                 for (Object val : singleValues) {
                     if (count > 0)
-                        insql.append(", ");
+                        insql.append("; ");
                     insql.append(toLiteral(val, type, columnName, column));
                     count++;
                 }
@@ -1143,7 +1143,7 @@ public class KdbQueryStringBuilder
             }
             else
             {
-                valuestr = "(" + list.stream().map(e->toLiteral(e, type, columnName, column)).collect(joining("; ")) + ")";
+                valuestr = (operator.equals("in") ? "enlist " : "") + "(" + list.stream().map(e->toLiteral(e, type, columnName, column)).collect(joining("; ")) + ")";
             }
         }
         else

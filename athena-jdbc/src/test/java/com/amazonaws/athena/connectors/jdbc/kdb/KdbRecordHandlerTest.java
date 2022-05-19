@@ -59,7 +59,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+
 import com.amazonaws.athena.connectors.jdbc.kdb.KdbQueryStringBuilder.DateCriteria;
 
 public class KdbRecordHandlerTest
@@ -323,7 +326,7 @@ public class KdbRecordHandlerTest
                 .put("ts"       , valueSet_ts)
                 .build());
 
-        String expectedSql = "q) select testCol1, testCol2, testCol3, r, testCol5, testCol6, testCol7, testCol8, date, z, g, str, c, t, ts from testTable  where (date within (1970.01.02;1970.01.03)) , (testCol1 in (1i, 2i)) , (testCol2 = `abc) , ((testCol3 > 2) and (testCol3 <= 20)) , (r = 1.5e) , (testCol5 = 1i) , (testCol6 = 0i) , (testCol7 = 1.2) , (testCol8 = 1b) , ((date within (1970.01.01;1970.01.03))) , (z = 2020.01.01D02:03:04.005006007) , (g = \"G\"$\"1234-5678\") , (c = \"w\") , (t = 03:03:04.005) , (ts = 04:03:04.005006007)";
+        String expectedSql = "q) select testCol1, testCol2, testCol3, r, testCol5, testCol6, testCol7, testCol8, date, z, g, str, c, t, ts from testTable  where (date within (1970.01.02;1970.01.03)) , (testCol1 in (1i; 2i)) , (testCol2 = `abc) , ((testCol3 > 2) and (testCol3 <= 20)) , (r = 1.5e) , (testCol5 = 1i) , (testCol6 = 0i) , (testCol7 = 1.2) , (testCol8 = 1b) , ((date within (1970.01.01;1970.01.03))) , (z = 2020.01.01D02:03:04.005006007) , (g = \"G\"$\"1234-5678\") , (c = \"w\") , (t = 03:03:04.005) , (ts = 04:03:04.005006007)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
@@ -386,12 +389,17 @@ public class KdbRecordHandlerTest
         Assert.assertEquals(expectedPreparedStatement, preparedStatement);
     }
 
-    static ValueSet getSingleValueSet(Object value) {
-        Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(range.isSingleValue()).thenReturn(true);
-        Mockito.when(range.getLow().getValue()).thenReturn(value);
+    static ValueSet getSingleValueSet(Object...values) {
+        List<Range> list = new ArrayList<>();
+        for(Object value : values)
+        {
+            Range range = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+            Mockito.when(range.isSingleValue()).thenReturn(true);
+            Mockito.when(range.getLow().getValue()).thenReturn(value);
+            list.add(range);
+        }
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.singletonList(range));
+        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(list);
         return valueSet;
     }
 
