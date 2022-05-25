@@ -892,10 +892,10 @@ public class KdbQueryStringBuilder
                 + "isSingleValue=" + rangeSpan.isSingleValue()
                 + "low.isNullValue=" + rangeSpan.getLow().isNullValue()
                 + "low.isLowerUnbounded=" + rangeSpan.getLow().isLowerUnbounded()
-                + "low.bound" + rangeSpan.getLow().getBound()
+                + "low.bound=" + (rangeSpan.getLow().isLowerUnbounded() ? "unbound" : rangeSpan.getLow().getBound())
                 + "high.isNullValue=" + rangeSpan.getHigh().isNullValue()
-                + "high.isLowerUnbounded=" + rangeSpan.getHigh().isLowerUnbounded()
-                + "high.bound" + rangeSpan.getHigh().getBound()
+                + "high.isLowerUnbounded=" + rangeSpan.getHigh().isUpperUnbounded()
+                + "high.bound=" + (rangeSpan.getHigh().isUpperUnbounded() ? "unbound" : rangeSpan.getHigh().getBound())
             );
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
                 // NOT NULL
