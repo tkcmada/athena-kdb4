@@ -326,6 +326,31 @@ public class KdbQueryStringBuilderTest
     }
 
     @Test
+    public void buildSql_datepushdown_nowhereondatepushdown_wherepushdown_sym_is_not_null() throws SQLException
+    {
+        LOGGER.info("buildSql_datepushdown_nowhereondatepushdown_wherepushdown_sym_is_not_null...");
+        setup();
+
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("date", KdbRecordHandlerTest.getSingleValueSet(1)) // date == 1970.01.02
+            .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, new org.apache.arrow.vector.util.Text("1970.01.02D09:00:00.000000000")))
+            .put("sym" , KdbRecordHandlerTest.getSortedRangeSetNotNull())
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true&wherepushdown=true&nowhereondatepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.02;((>=; `time; 1970.01.02D09:00:00.000000000); (not; (null; `sym)))]  where ((time >= 1970.01.02D09:00:00.000000000)) , not[(sym = ` )]", resultSql);
+    }
+
+    @Test
     public void buildSql_datepushdown_nowhereondatepushdown_wherepushdown_complex_criteria() throws SQLException
     {
         setup();

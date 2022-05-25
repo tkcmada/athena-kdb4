@@ -286,6 +286,7 @@ public class KdbQueryStringBuilder
                 String whereclause = null;
                 if (wherepushdown) {
                     LOGGER.info("wherepushdown is enabled.");
+                    LOGGER.info("constraints summary is " + constraints.getSummary());
                     whereclause = toWhereClause(tableSchema.getFields(), constraints.getSummary(), split.getProperties(), nowhereondatepushdown, datefield);
                     LOGGER.info("whereclause=" + String.valueOf(whereclause));
                 }
@@ -854,11 +855,9 @@ public class KdbQueryStringBuilder
             ArrowType type = column.getType();
             if (constraintsSummary != null && ! constraintsSummary.isEmpty()) {
                 ValueSet valueSet = constraintsSummary.get(column.getName());
-                if (valueSet != null) {
-                    String cond = toWhereClause(column.getName(), column, valueSet, type);
-                    if(cond != null)
-                        conjuncts.add(cond);
-                }
+                String cond = toWhereClause(column.getName(), column, valueSet, type);
+                if(cond != null)
+                    conjuncts.add(cond);
             }
         }
         if(conjuncts.isEmpty())
@@ -875,24 +874,33 @@ public class KdbQueryStringBuilder
         List<Object> singleValues = new ArrayList<>();
 
         // TODO Add isNone and isAll checks once we have data on nullability.
-
         if (valueSet instanceof SortedRangeSet) {
+            LOGGER.info("{}:SortedRangeSet.isAll={}, isNone={}, isNullAllowed={} , isSingleValue={}", columnName, valueSet.isAll(), valueSet.isNone(), valueSet.isNullAllowed(), valueSet.isSingleValue());
             if (valueSet.isNone() && valueSet.isNullAllowed()) {
                 LOGGER.info(columnName + ":null");
                 return toPredicateNull(columnName, column, type, accumulator);
             }
 
-            // we don't need to add disjunction(OR (colname IS NULL)) because
             if (valueSet.isNullAllowed()) {
-                LOGGER.info(columnName + ":isNullAllowed=true");
+                LOGGER.info(columnName + ":isNullAllowed=true -> IS NULL");
                 disjuncts.add(toPredicateNull(columnName, column, type, accumulator));
             }
-
-            Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
+            SortedRangeSet sortedRangeSet = (SortedRangeSet) valueSet;
+            Range rangeSpan = sortedRangeSet.getSpan();
+            LOGGER.info("valueSet.span="
+                + "isAll=" + rangeSpan.isAll()
+                + "isSingleValue=" + rangeSpan.isSingleValue()
+                + "low.isNullValue=" + rangeSpan.getLow().isNullValue()
+                + "low.isLowerUnbounded=" + rangeSpan.getLow().isLowerUnbounded()
+                + "low.bound" + rangeSpan.getLow().getBound()
+                + "high.isNullValue=" + rangeSpan.getHigh().isNullValue()
+                + "high.isLowerUnbounded=" + rangeSpan.getHigh().isLowerUnbounded()
+                + "high.bound" + rangeSpan.getHigh().getBound()
+            );
             if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-                //probably this is typo and meant "valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()" ?
-                LOGGER.info(columnName + ":isNullAllowed()=false, getLow().isLowerUnbounded()=true, getHigh().isUpperUnbounded()=true");
-                return toPredicateNull(columnName, column, type, accumulator);
+                // NOT NULL
+                LOGGER.info(columnName + " IS NOT NULL");
+                return "not[" + toPredicateNull(columnName, column, type, accumulator) + "]";
             }
 
             int k = 0;
@@ -990,11 +998,13 @@ public class KdbQueryStringBuilder
 
     protected String toWhereClause(String columnName, Field column, ValueSet valueSet, ArrowType type)
     {
+        LOGGER.info("toWhereClause columnName={}, type={}, valueSet={}", columnName, type, valueSet);
+
         if(valueSet == null)
             return null;
+
+        LOGGER.info("isAll={}, isNone={}, isNullAllowed={} , isSingleValue={}", valueSet.isAll(), valueSet.isNone(), valueSet.isNullAllowed(), valueSet.isSingleValue());
     
-        LOGGER.info("toWhereClause columnName={}, type={}, valueSet={}", columnName, type, valueSet);
-        
         if (! (valueSet instanceof SortedRangeSet)) {
             //don't know this type valueSet
             LOGGER.info("toWhereClause don't know this type valueSet. columnName={}, type={}, valueSet={}", columnName, type, valueSet);
@@ -1005,76 +1015,86 @@ public class KdbQueryStringBuilder
         List<Object> singleValues = new ArrayList<>();
 
         if(valueSet.isAll())
+        {
+            LOGGER.info("isAll is true.");
             return null; //no condition
+        }
 
         if (valueSet.isNone())
         {
             if (valueSet.isNullAllowed())
+            {
+                LOGGER.info("isNone is true and isNullAllowed is true.");
                 return toWhereClauseNull(columnName);
+            }
             else
                 throw new IllegalArgumentException("not supported isNone && ! isNullAllowed combination. columnName=" + columnName + "; valueSet=" + valueSet);
         }
 
-        Range rangeSpan = ((SortedRangeSet) valueSet).getSpan();
         if (valueSet.isNullAllowed()) {
+            LOGGER.info("isNullAllowed is true.");
             disjuncts.add(toWhereClauseNull(columnName));
         }
 
-        if (rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-            //no boundary condition
-        } else {
-            for (Range range : valueSet.getRanges().getOrderedRanges()) {
-                if (range.isSingleValue()) {
-                    singleValues.add(range.getLow().getValue());
+        SortedRangeSet sortedRangeSet = (SortedRangeSet) valueSet;
+        LOGGER.info("isNullAllowed={}, low.isLowerUnbounded={}, high.isUpperUnbounded={}", valueSet.isNullAllowed(),  sortedRangeSet.getSpan().getLow().isLowerUnbounded(), sortedRangeSet.getSpan().getHigh().isUpperUnbounded());
+        if (!valueSet.isNullAllowed() && sortedRangeSet.getSpan().getLow().isLowerUnbounded() && sortedRangeSet.getSpan().getHigh().isUpperUnbounded()) {
+            // NOT NULL
+            LOGGER.info(columnName + ":isNullAllowed()=false, getLow().isLowerUnbounded()=true, getHigh().isUpperUnbounded()=true -> IS NOT NULL");
+            return "(not; " + toWhereClauseNull(columnName) + ")";
+        }
+
+        for (Range range : valueSet.getRanges().getOrderedRanges()) {
+            if (range.isSingleValue()) {
+                singleValues.add(range.getLow().getValue());
+            }
+            else {
+                final List<String> rangeConjuncts = new ArrayList<>();
+                if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
+                    //between = within
+                    final List<Object> atoms = Lists.newArrayList(range.getLow().getValue(), range.getHigh().getValue());
+                    rangeConjuncts.add(toWhereClause(columnName, column, "within", atoms, type));
                 }
-                else {
-                    final List<String> rangeConjuncts = new ArrayList<>();
-                    if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
-                        //between = within
-                        final List<Object> atoms = Lists.newArrayList(range.getLow().getValue(), range.getHigh().getValue());
-                        rangeConjuncts.add(toWhereClause(columnName, column, "within", atoms, type));
-                    }
-                    else
-                    {
-                        if (!range.getLow().isLowerUnbounded()) {
-                            switch (range.getLow().getBound()) {
-                                case ABOVE:
-                                    rangeConjuncts.add(toWhereClause(columnName, column, ">", range.getLow().getValue(), type));
-                                    break;
-                                case EXACTLY:
-                                    rangeConjuncts.add(toWhereClause(columnName, column, ">=", range.getLow().getValue(), type));
-                                    break;
-                                case BELOW:
-                                    throw new IllegalArgumentException("Low marker should never use BELOW bound");
-                                default:
-                                    throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
-                            }
-                        }
-                        if (!range.getHigh().isUpperUnbounded()) {
-                            switch (range.getHigh().getBound()) {
-                                case ABOVE:
-                                    throw new IllegalArgumentException("High marker should never use ABOVE bound");
-                                case EXACTLY:
-                                    rangeConjuncts.add(toWhereClause(columnName, column, "<=", range.getHigh().getValue(), type));
-                                    break;
-                                case BELOW:
-                                    rangeConjuncts.add(toWhereClause(columnName, column, "<", range.getHigh().getValue(), type));
-                                    break;
-                                default:
-                                    throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
-                            }
+                else
+                {
+                    if (!range.getLow().isLowerUnbounded()) {
+                        switch (range.getLow().getBound()) {
+                            case ABOVE:
+                                rangeConjuncts.add(toWhereClause(columnName, column, ">", range.getLow().getValue(), type));
+                                break;
+                            case EXACTLY:
+                                rangeConjuncts.add(toWhereClause(columnName, column, ">=", range.getLow().getValue(), type));
+                                break;
+                            case BELOW:
+                                throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                            default:
+                                throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
                         }
                     }
-                    // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
-                    Preconditions.checkState(!rangeConjuncts.isEmpty());
-                    if(rangeConjuncts.size() > 1) 
-                    {
-                        disjuncts.add("(and; " + Joiner.on("; ").join(rangeConjuncts) + ")");
+                    if (!range.getHigh().isUpperUnbounded()) {
+                        switch (range.getHigh().getBound()) {
+                            case ABOVE:
+                                throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                            case EXACTLY:
+                                rangeConjuncts.add(toWhereClause(columnName, column, "<=", range.getHigh().getValue(), type));
+                                break;
+                            case BELOW:
+                                rangeConjuncts.add(toWhereClause(columnName, column, "<", range.getHigh().getValue(), type));
+                                break;
+                            default:
+                                throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
+                        }
                     }
-                    else
-                    {
-                        disjuncts.add(rangeConjuncts.get(0));
-                    }
+                }
+                // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
+                Preconditions.checkState(!rangeConjuncts.isEmpty());
+                if(rangeConjuncts.size() > 1) 
+                {
+                    disjuncts.add("(and; " + Joiner.on("; ").join(rangeConjuncts) + ")");
+                }
+                else
+                {
+                    disjuncts.add(rangeConjuncts.get(0));
                 }
             }
         }
@@ -1089,7 +1109,10 @@ public class KdbQueryStringBuilder
         }
 
         if(disjuncts.isEmpty())
+        {
+            LOGGER.info("no criteria.");
             return null; //no criteria
+        }
         else if(disjuncts.size() == 1)
             return Iterables.getOnlyElement(disjuncts);
         else

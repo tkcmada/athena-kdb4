@@ -403,11 +403,36 @@ public class KdbRecordHandlerTest
         return valueSet;
     }
 
-    static private ValueSet getSingleValueSetOnlyNull() {
+    static ValueSet getSingleValueSetOnlyNull() {
         ValueSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(valueSet.isNullAllowed()).thenReturn(true);
         Mockito.when(valueSet.isNone()).thenReturn(true); //collection is empty
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(Collections.emptyList());
+        return valueSet;
+    }
+
+    static ValueSet getSortedRangeSetNotNull() {
+        SortedRangeSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(valueSet.isAll()).thenReturn(false);
+        Mockito.when(valueSet.isNone()).thenReturn(false);
+        Mockito.when(valueSet.isNullAllowed()).thenReturn(false);
+        Mockito.when(valueSet.isSingleValue()).thenReturn(false);
+        Mockito.when(valueSet.toString()).thenReturn("NOT_NULL");
+
+        //this doesn't work well.
+        // Mockito.when(valueSet.getSpan().getLow().isLowerUnbounded()).thenReturn(true);
+        // Mockito.when(valueSet.getSpan().getHigh().isUpperUnbounded()).thenReturn(true);
+
+        Marker makerlow = Mockito.mock(Marker.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(makerlow.isLowerUnbounded()).thenReturn(true);
+        Marker makerhigh = Mockito.mock(Marker.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(makerhigh.isUpperUnbounded()).thenReturn(true);
+
+        Range rng = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(rng.getLow()).thenReturn(makerlow);
+        Mockito.when(rng.getHigh()).thenReturn(makerhigh);
+        Mockito.when(valueSet.getSpan()).thenReturn(rng);
+
         return valueSet;
     }
 
