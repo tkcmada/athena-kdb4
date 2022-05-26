@@ -347,7 +347,7 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.02;((>=; `time; 1970.01.02D09:00:00.000000000); (or; (<; `sym; `EURUSD); (and; (>; `sym; `EURUSD); (<; `sym; `USDJPY)); (>; `sym; `USDJPY)))]  where ((time >= 1970.01.02D09:00:00.000000000)) , ((sym < `EURUSD) or (sym > `EURUSD) and (sym < `USDJPY) or (sym > `USDJPY))", resultSql);
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.02;((>=; `time; 1970.01.02D09:00:00.000000000); (or; (<; `sym; `EURUSD); (and; (>; `sym; `EURUSD); (<; `sym; `USDJPY)); (>; `sym; `USDJPY)))]  where ((time >= 1970.01.02D09:00:00.000000000)) , (not[sym in (`EURUSD; `USDJPY)])", resultSql);
     }
 
     @Test
