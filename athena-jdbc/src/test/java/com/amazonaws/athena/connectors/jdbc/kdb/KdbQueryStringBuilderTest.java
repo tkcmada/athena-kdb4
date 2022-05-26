@@ -202,7 +202,7 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.03)) , (date within (1970.01.02;1970.01.03))", resultSql);
     }
 
     @Test
@@ -219,7 +219,7 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.03)) , (date within (1970.01.02;1970.01.03))", resultSql);
     }
 
     @Test
@@ -236,7 +236,7 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03]  where (date within (1970.01.02;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03]  where (date within (1970.01.02;1970.01.03)) , (date within (1970.01.02;1970.01.03))", resultSql);
     }
 
 
@@ -323,6 +323,31 @@ public class KdbQueryStringBuilderTest
             );
         
         Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.02;((>=; `time; 1970.01.02D09:00:00.000000000); (in; `sym; enlist (`USDJPY; `EURUSD)))]  where ((time >= 1970.01.02D09:00:00.000000000)) , (sym in (`USDJPY; `EURUSD))", resultSql);
+    }
+
+    @Test
+    public void buildSql_datepushdown_nowhereondatepushdown_wherepushdown_sym_not_in_list_of_symbols() throws SQLException
+    {
+        LOGGER.info("buildSql_datepushdown_nowhereondatepushdown_wherepushdown_sym_not_in_list_of_symbols...");
+        setup();
+
+        Map<String, ValueSet> summary = ImmutableMap.<String, ValueSet>builder()
+            .put("date", KdbRecordHandlerTest.getSingleValueSet(1)) // date == 1970.01.02
+            .put("time", KdbRecordHandlerTest.getRangeSetLowerOnly(Bound.EXACTLY, new org.apache.arrow.vector.util.Text("1970.01.02D09:00:00.000000000")))
+            .put("sym" , KdbRecordHandlerTest.getSortedRangeSetNotIn(new org.apache.arrow.vector.util.Text("EURUSD"), new org.apache.arrow.vector.util.Text("USDJPY")))
+            .build();
+        Mockito.when(constraints.getSummary()).thenReturn(summary);
+
+        String resultSql = builder.buildSqlString(
+            "lambda:kdb"
+            , "datepushdown=true&wherepushdown=true&nowhereondatepushdown=true"
+            , "func_cfd[2021.01.01;2021.01.01;`]"
+            , schema
+            , constraints
+            , split
+            );
+        
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.02;((>=; `time; 1970.01.02D09:00:00.000000000); (or; (<; `sym; `EURUSD); (and; (>; `sym; `EURUSD); (<; `sym; `USDJPY)); (>; `sym; `USDJPY)))]  where ((time >= 1970.01.02D09:00:00.000000000)) , ((sym < `EURUSD) or (sym > `EURUSD) and (sym < `USDJPY) or (sym > `USDJPY))", resultSql);
     }
 
     @Test
@@ -493,7 +518,7 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03]  where (date within (1970.01.02;1970.01.03)) , ((time within (1970.01.02D09:00:00.000000000;1970.01.03D09:00:00.000000000)))", resultSql);
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.03]  where (date within (1970.01.02;1970.01.03)) , (time within (1970.01.02D09:00:00.000000000;1970.01.03D09:00:00.000000000))", resultSql);
     }
 
     @Test
@@ -651,7 +676,7 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.02;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.02)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.02;1970.01.02;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.02;1970.01.02)) , (date within (1970.01.02;1970.01.03))", resultSql);
     }
 
     @Test
@@ -671,6 +696,6 @@ public class KdbQueryStringBuilderTest
             , split
             );
         
-        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.03;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.03;1970.01.03)) , ((date within (1970.01.02;1970.01.03)))", resultSql);
+        Assert.assertEquals("q) select time, date, sym from func_cfd[1970.01.03;1970.01.03;enlist (within; `date; (1970.01.02; 1970.01.03))]  where (date within (1970.01.03;1970.01.03)) , (date within (1970.01.02;1970.01.03))", resultSql);
     }
 }

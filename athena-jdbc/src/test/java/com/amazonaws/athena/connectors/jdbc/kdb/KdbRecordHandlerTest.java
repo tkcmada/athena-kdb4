@@ -329,7 +329,7 @@ public class KdbRecordHandlerTest
                 .put("ts"       , valueSet_ts)
                 .build());
 
-        String expectedSql = "q) select testCol1, testCol2, testCol3, r, testCol5, testCol6, testCol7, testCol8, date, z, g, str, c, t, ts from testTable  where (date within (1970.01.02;1970.01.03)) , (testCol1 in (1i; 2i)) , (testCol2 = `abc) , ((testCol3 > 2) and (testCol3 <= 20)) , (r = 1.5e) , (testCol5 = 1i) , (testCol6 = 0i) , (testCol7 = 1.2) , (testCol8 = 1b) , ((date within (1970.01.01;1970.01.03))) , (z = 2020.01.01D02:03:04.005006007) , (g = \"G\"$\"1234-5678\") , (c = \"w\") , (t = 03:03:04.005) , (ts = 04:03:04.005006007)";
+        String expectedSql = "q) select testCol1, testCol2, testCol3, r, testCol5, testCol6, testCol7, testCol8, date, z, g, str, c, t, ts from testTable  where (date within (1970.01.02;1970.01.03)) , (testCol1 in (1i; 2i)) , (testCol2 = `abc) , ((testCol3 > 2) and (testCol3 <= 20)) , (r = 1.5e) , (testCol5 = 1i) , (testCol6 = 0i) , (testCol7 = 1.2) , (testCol8 = 1b) , (date within (1970.01.01;1970.01.03)) , (z = 2020.01.01D02:03:04.005006007) , (g = \"G\"$\"1234-5678\") , (c = \"w\") , (t = 03:03:04.005) , (ts = 04:03:04.005006007)";
         PreparedStatement expectedPreparedStatement = Mockito.mock(PreparedStatement.class);
         Mockito.when(this.connection.prepareStatement(Mockito.eq(expectedSql))).thenReturn(expectedPreparedStatement);
 
@@ -447,20 +447,68 @@ public class KdbRecordHandlerTest
         ranges.add(rng);
         Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
 
-        ranges = valueSet.getRanges().getOrderedRanges();
-        for (int k = 0; k < ranges.size(); k++) {
-            Range range = ranges.get(k);
-            LOGGER.info("valueSet.ranges.orderedRanges[" + k + "]="
-            + "isSingleValue=" + range.isSingleValue() 
-            + ",isAll=" + range.isAll() 
-            + ",low.bound=" + range.getLow().getBound()
-            + ",low.isLowerUnbounded=" + range.getLow().isLowerUnbounded()
-            + ",low.value=" + (range.getLow().isNullValue() ? "null" : range.getLow().getValue())
-            + ",high.bound=" + range.getHigh().getBound()
-            + ",high.isUpperUnbounded=" + range.getHigh().isUpperUnbounded()
-            + ",high.value=" + (range.getHigh().isNullValue() ? "null" : range.getHigh().getValue())
-            );
+        return valueSet;
+    }
+
+    //sym IS NOT NULL
+    static ValueSet getSortedRangeSetNotIn(Object...sortedValues) {
+        SortedRangeSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(valueSet.isAll()).thenReturn(false);
+        Mockito.when(valueSet.isNone()).thenReturn(false);
+        Mockito.when(valueSet.isNullAllowed()).thenReturn(false);
+        Mockito.when(valueSet.isSingleValue()).thenReturn(false);
+        Mockito.when(valueSet.toString()).thenReturn("NOT_NULL");
+
+        //this doesn't work well.
+        // Mockito.when(valueSet.getSpan().getLow().isLowerUnbounded()).thenReturn(true);
+        // Mockito.when(valueSet.getSpan().getHigh().isUpperUnbounded()).thenReturn(true);
+
+        List<Range> ranges = Lists.newArrayList();
+        Object prevValue = null;
+        for(int i = 0; i <= sortedValues.length; i++)
+        {
+            Object value = i < sortedValues.length ? sortedValues[i] : null;
+            Marker makerlow = Mockito.mock(Marker.class, Mockito.RETURNS_DEEP_STUBS);
+            Mockito.when(makerlow.getBound()).thenReturn(Bound.ABOVE);
+            if(i == 0)
+            {
+                Mockito.when(makerlow.isLowerUnbounded()).thenReturn(true);
+                Mockito.when(makerlow.isNullValue()).thenReturn(true);
+                Mockito.when(makerlow.getValue()).thenReturn(null);
+            }
+            else
+            {
+                Mockito.when(makerlow.isLowerUnbounded()).thenReturn(false);
+                Mockito.when(makerlow.isNullValue()).thenReturn(false);
+                Mockito.when(makerlow.getValue()).thenReturn(prevValue);
+            }
+
+            Marker makerhigh = Mockito.mock(Marker.class, Mockito.RETURNS_DEEP_STUBS);
+            Mockito.when(makerhigh.getBound()).thenReturn(Bound.BELOW);
+            if(i == sortedValues.length)
+            {
+                Mockito.when(makerhigh.isUpperUnbounded()).thenReturn(true);
+                Mockito.when(makerhigh.isNullValue()).thenReturn(true);
+                Mockito.when(makerhigh.getValue()).thenReturn(null);
+            }
+            else
+            {
+                Mockito.when(makerhigh.isUpperUnbounded()).thenReturn(false);
+                Mockito.when(makerhigh.isNullValue()).thenReturn(false);
+                Mockito.when(makerhigh.getValue()).thenReturn(value);
+            }
+
+            Range rng = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
+            Mockito.when(rng.getLow()).thenReturn(makerlow);
+            Mockito.when(rng.getHigh()).thenReturn(makerhigh);
+            Mockito.when(rng.isSingleValue()).thenReturn(false);
+
+            ranges.add(rng);
+            prevValue = value;
         }
+
+        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
+
         return valueSet;
     }
 

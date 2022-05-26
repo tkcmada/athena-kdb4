@@ -161,6 +161,26 @@ public class KdbQueryStringBuilder
             , constraints
             , split
             );
+        try
+        {
+            return buildSqlStringInner(catalog, schema, table, tableSchema, constraints, split);
+        }
+        catch(RuntimeException ex)
+        {
+            LOGGER.error("error in building sql.", ex);
+            throw ex;
+        }
+    }
+
+    private String buildSqlStringInner(
+            final String catalog,
+            final String schema,
+            final String table,
+            final Schema tableSchema,
+            Constraints constraints,
+            final Split split)
+            throws SQLException
+    {       
         final String partition_name = split.getProperties().get(KdbMetadataHandler.PARTITION_COLUMN_NAME);
         LOGGER.info("partition_name={}", partition_name);
         int total_partitions = 1;
@@ -933,13 +953,13 @@ public class KdbQueryStringBuilder
                 disjuncts.add("not[" + toPredicateNull(columnName, column, type, accumulator) + "]");
             }
             else {
-                List<String> rangeConjuncts = new ArrayList<>();
                 if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
                     //between = within
-                    rangeConjuncts.add(quote(columnName) + " within (" + toLiteral(range.getLow().getValue(), type, columnName, column) + ";" + toLiteral(range.getHigh().getValue(), type, columnName, column) + ")");
+                    disjuncts.add(quote(columnName) + " within (" + toLiteral(range.getLow().getValue(), type, columnName, column) + ";" + toLiteral(range.getHigh().getValue(), type, columnName, column) + ")");
                 }
                 else
                 {
+                    List<String> rangeConjuncts = new ArrayList<>();
                     if (!range.getLow().isLowerUnbounded()) {
                         switch (range.getLow().getBound()) {
                             case ABOVE:
@@ -968,20 +988,20 @@ public class KdbQueryStringBuilder
                                 throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
                         }
                     }
+                    // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
+                    Preconditions.checkState(!rangeConjuncts.isEmpty());
+                    StringBuilder rngsql = new StringBuilder();
+                    for (int i = 0; i < rangeConjuncts.size(); i++) {
+                        if (i > 0)
+                            rngsql.append(" and ");
+                        if (rangeConjuncts.size() > 0)
+                            rngsql.append("(");
+                        rngsql.append(rangeConjuncts.get(i));
+                        if (rangeConjuncts.size() > 0)
+                            rngsql.append(")");
+                    }
+                    disjuncts.add(rngsql.toString());
                 }
-                // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
-                Preconditions.checkState(!rangeConjuncts.isEmpty());
-                StringBuilder rngsql = new StringBuilder();
-                for (int i = 0; i < rangeConjuncts.size(); i++) {
-                    if (i > 0)
-                        rngsql.append(" and ");
-                    if (rangeConjuncts.size() > 0)
-                        rngsql.append("(");
-                    rngsql.append(rangeConjuncts.get(i));
-                    if (rangeConjuncts.size() > 0)
-                        rngsql.append(")");
-                }
-                disjuncts.add(rngsql.toString());
             }
         }
 
@@ -1043,11 +1063,23 @@ public class KdbQueryStringBuilder
         }
 
         if (valueSet.isNullAllowed()) {
-            LOGGER.info("isNullAllowed is true.");
+            LOGGER.info(columnName + ":isNullAllowed is true.");
             disjuncts.add(toWhereClauseNull(columnName));
         }
 
-        for (Range range : valueSet.getRanges().getOrderedRanges()) {
+        List<Range> list = valueSet.getRanges().getOrderedRanges();
+        for (int k = 0; k < list.size(); k++) {
+            Range range = list.get(k);
+            LOGGER.info(columnName + ":valueSet.ranges.orderedRanges[" + k + "]="
+            + "isSingleValue=" + range.isSingleValue() 
+            + ",isAll=" + range.isAll() 
+            + ",low.bound=" + range.getLow().getBound()
+            + ",low.isLowerUnbounded=" + range.getLow().isLowerUnbounded()
+            + ",low.value=" + (range.getLow().isNullValue() ? "null" : range.getLow().getValue())
+            + ",high.bound=" + range.getHigh().getBound()
+            + ",high.isUpperUnbounded=" + range.getHigh().isUpperUnbounded()
+            + ",high.value=" + (range.getHigh().isNullValue() ? "null" : range.getHigh().getValue())
+            );
             if (range.isSingleValue()) {
                 singleValues.add(range.getLow().getValue());
             }
@@ -1057,14 +1089,14 @@ public class KdbQueryStringBuilder
                 disjuncts.add("(not; " + toWhereClauseNull(columnName) + ")");
             }
             else {
-                final List<String> rangeConjuncts = new ArrayList<>();
                 if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
                     //between = within
                     final List<Object> atoms = Lists.newArrayList(range.getLow().getValue(), range.getHigh().getValue());
-                    rangeConjuncts.add(toWhereClause(columnName, column, "within", atoms, type));
+                    disjuncts.add(toWhereClause(columnName, column, "within", atoms, type));
                 }
                 else
                 {
+                    final List<String> rangeConjuncts = new ArrayList<>();
                     if (!range.getLow().isLowerUnbounded()) {
                         switch (range.getLow().getBound()) {
                             case ABOVE:
@@ -1093,16 +1125,17 @@ public class KdbQueryStringBuilder
                                 throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
                         }
                     }
-                }
-                // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
-                Preconditions.checkState(!rangeConjuncts.isEmpty());
-                if(rangeConjuncts.size() > 1) 
-                {
-                    disjuncts.add("(and; " + Joiner.on("; ").join(rangeConjuncts) + ")");
-                }
-                else
-                {
-                    disjuncts.add(rangeConjuncts.get(0));
+                    // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
+                    if(rangeConjuncts.isEmpty())
+                        throw new IllegalArgumentException("toWhereClause cannot build range condition. column=" + columnName + " valueSet=" + valueSet);
+                    if(rangeConjuncts.size() > 1) 
+                    {
+                        disjuncts.add("(and; " + Joiner.on("; ").join(rangeConjuncts) + ")");
+                    }
+                    else
+                    {
+                        disjuncts.add(rangeConjuncts.get(0));
+                    }
                 }
             }
         }
