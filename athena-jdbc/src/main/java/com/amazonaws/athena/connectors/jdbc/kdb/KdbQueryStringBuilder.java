@@ -1129,7 +1129,6 @@ public class KdbQueryStringBuilder
         }
     
         List<String> disjuncts = new ArrayList<>();
-        List<Object> singleValues = new ArrayList<>();
 
         // if(valueSet.isAll())
         // {
@@ -1153,74 +1152,76 @@ public class KdbQueryStringBuilder
             disjuncts.add(toWhereClauseNull(columnName));
         }
 
-        List<Range> list = valueSet.getRanges().getOrderedRanges();
-        for (int k = 0; k < list.size(); k++) {
-            Range range = list.get(k);
-            LOGGER.info(columnName + ":valueSet.ranges.orderedRanges[" + k + "]="
-            + "isSingleValue=" + range.isSingleValue() 
-            + ",isAll=" + range.isAll() 
-            + ",low.bound=" + range.getLow().getBound()
-            + ",low.isLowerUnbounded=" + range.getLow().isLowerUnbounded()
-            + ",low.value=" + (range.getLow().isNullValue() ? "null" : range.getLow().getValue())
-            + ",high.bound=" + range.getHigh().getBound()
-            + ",high.isUpperUnbounded=" + range.getHigh().isUpperUnbounded()
-            + ",high.value=" + (range.getHigh().isNullValue() ? "null" : range.getHigh().getValue())
-            );
-            if (range.isSingleValue()) {
-                singleValues.add(range.getLow().getValue());
-            }
-            else if (range.getLow().isLowerUnbounded() && range.getLow().isNullValue() && range.getLow().getBound() == Bound.ABOVE && range.getHigh().isUpperUnbounded() && range.getHigh().isNullValue() && range.getHigh().getBound() == Bound.BELOW) {
-                // col < NULL and NULL < col
-                // => col IS NOT NULL
-                disjuncts.add("(not; " + toWhereClauseNull(columnName) + ")");
-            }
-            else {
-                if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
-                    //between = within
-                    final List<Object> atoms = Lists.newArrayList(range.getLow().getValue(), range.getHigh().getValue());
-                    disjuncts.add(toWhereClause(columnName, column, "within", atoms, type));
+        List<Range> ranges = valueSet.getRanges().getOrderedRanges();
+        List<Object> notIn = tryConvertToNotInCondition(ranges);
+        List<Object> singleValues = new ArrayList<>();
+        boolean isNot = false;
+        if(notIn != null)
+        {
+            LOGGER.info("tryConvertToNotInCondition->" + singleValues);
+            singleValues.addAll(notIn);
+            isNot = true;
+        }
+        else
+        {
+            for (int k = 0; k < ranges.size(); k++) {
+                Range range = ranges.get(k);
+                if (range.isSingleValue()) {
+                    singleValues.add(range.getLow().getValue());
                 }
-                else
-                {
-                    final List<String> rangeConjuncts = new ArrayList<>();
-                    if (!range.getLow().isLowerUnbounded()) {
-                        switch (range.getLow().getBound()) {
-                            case ABOVE:
-                                rangeConjuncts.add(toWhereClause(columnName, column, ">", range.getLow().getValue(), type));
-                                break;
-                            case EXACTLY:
-                                rangeConjuncts.add(toWhereClause(columnName, column, ">=", range.getLow().getValue(), type));
-                                break;
-                            case BELOW:
-                                throw new IllegalArgumentException("Low marker should never use BELOW bound");
-                            default:
-                                throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
-                        }
-                    }
-                    if (!range.getHigh().isUpperUnbounded()) {
-                        switch (range.getHigh().getBound()) {
-                            case ABOVE:
-                                throw new IllegalArgumentException("High marker should never use ABOVE bound");
-                            case EXACTLY:
-                                rangeConjuncts.add(toWhereClause(columnName, column, "<=", range.getHigh().getValue(), type));
-                                break;
-                            case BELOW:
-                                rangeConjuncts.add(toWhereClause(columnName, column, "<", range.getHigh().getValue(), type));
-                                break;
-                            default:
-                                throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
-                        }
-                    }
-                    // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
-                    if(rangeConjuncts.isEmpty())
-                        throw new IllegalArgumentException("toWhereClause cannot build range condition. column=" + columnName + " valueSet=" + valueSet);
-                    if(rangeConjuncts.size() > 1) 
-                    {
-                        disjuncts.add("(and; " + Joiner.on("; ").join(rangeConjuncts) + ")");
+                else if (range.getLow().isLowerUnbounded() && range.getLow().isNullValue() && range.getLow().getBound() == Bound.ABOVE && range.getHigh().isUpperUnbounded() && range.getHigh().isNullValue() && range.getHigh().getBound() == Bound.BELOW) {
+                    // col < NULL and NULL < col
+                    // => col IS NOT NULL
+                    disjuncts.add("(not; " + toWhereClauseNull(columnName) + ")");
+                }
+                else {
+                    if (!range.getLow().isLowerUnbounded() && range.getLow().getBound() == Bound.EXACTLY && !range.getHigh().isUpperUnbounded() && range.getHigh().getBound() == Bound.EXACTLY) {
+                        //between = within
+                        final List<Object> atoms = Lists.newArrayList(range.getLow().getValue(), range.getHigh().getValue());
+                        disjuncts.add(toWhereClause(columnName, column, "within", atoms, type));
                     }
                     else
                     {
-                        disjuncts.add(rangeConjuncts.get(0));
+                        final List<String> rangeConjuncts = new ArrayList<>();
+                        if (!range.getLow().isLowerUnbounded()) {
+                            switch (range.getLow().getBound()) {
+                                case ABOVE:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, ">", range.getLow().getValue(), type));
+                                    break;
+                                case EXACTLY:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, ">=", range.getLow().getValue(), type));
+                                    break;
+                                case BELOW:
+                                    throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                                default:
+                                    throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
+                            }
+                        }
+                        if (!range.getHigh().isUpperUnbounded()) {
+                            switch (range.getHigh().getBound()) {
+                                case ABOVE:
+                                    throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                                case EXACTLY:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, "<=", range.getHigh().getValue(), type));
+                                    break;
+                                case BELOW:
+                                    rangeConjuncts.add(toWhereClause(columnName, column, "<", range.getHigh().getValue(), type));
+                                    break;
+                                default:
+                                    throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
+                            }
+                        }
+                        // If rangeConjuncts is null, then the range was ALL, which should already have been checked for
+                        if(rangeConjuncts.isEmpty())
+                            throw new IllegalArgumentException("toWhereClause cannot build range condition. column=" + columnName + " valueSet=" + valueSet);
+                        if(rangeConjuncts.size() > 1) 
+                        {
+                            disjuncts.add("(and; " + Joiner.on("; ").join(rangeConjuncts) + ")");
+                        }
+                        else
+                        {
+                            disjuncts.add(rangeConjuncts.get(0));
+                        }
                     }
                 }
             }
@@ -1228,13 +1229,20 @@ public class KdbQueryStringBuilder
         // Add back all of the possible single values either as an equality or an IN predicate
         if (singleValues.size() == 1) 
         {
-            disjuncts.add(toWhereClause(columnName, column, "=", Iterables.getOnlyElement(singleValues), type));
+            final String cond = toWhereClause(columnName, column, "=", Iterables.getOnlyElement(singleValues), type);
+            if(isNot)
+                disjuncts.add("(not; " + cond + ")");
+            else
+                disjuncts.add(cond);
         }
         else if (singleValues.size() > 1) 
         {
-            disjuncts.add(toWhereClause(columnName, column, "in", singleValues, type));
+            final String cond = toWhereClause(columnName, column, "in", singleValues, type);
+            if(isNot)
+                disjuncts.add("(not; " + cond + ")");
+            else
+                disjuncts.add(cond);
         }
-
         if(disjuncts.isEmpty())
         {
             LOGGER.info("no criteria.");
