@@ -28,8 +28,10 @@ import com.amazonaws.athena.connector.lambda.domain.TableName;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Constraints;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Marker;
 import com.amazonaws.athena.connector.lambda.domain.predicate.Range;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Ranges;
 import com.amazonaws.athena.connector.lambda.domain.predicate.SortedRangeSet;
 import com.amazonaws.athena.connector.lambda.domain.predicate.ValueSet;
+import com.amazonaws.athena.connector.lambda.domain.predicate.Marker.Bound;
 import com.amazonaws.athena.connectors.jdbc.connection.DatabaseConnectionConfig;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcConnectionFactory;
 import com.amazonaws.athena.connectors.jdbc.connection.JdbcCredentialProvider;
@@ -39,6 +41,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.secretsmanager.AWSSecretsManager;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import org.apache.arrow.vector.holders.NullableDateDayHolder;
@@ -411,9 +414,10 @@ public class KdbRecordHandlerTest
         return valueSet;
     }
 
+    //sym IS NOT NULL
     static ValueSet getSortedRangeSetNotNull() {
         SortedRangeSet valueSet = Mockito.mock(SortedRangeSet.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(valueSet.isAll()).thenReturn(false);
+        Mockito.when(valueSet.isAll()).thenReturn(true);
         Mockito.when(valueSet.isNone()).thenReturn(false);
         Mockito.when(valueSet.isNullAllowed()).thenReturn(false);
         Mockito.when(valueSet.isSingleValue()).thenReturn(false);
@@ -424,15 +428,39 @@ public class KdbRecordHandlerTest
         // Mockito.when(valueSet.getSpan().getHigh().isUpperUnbounded()).thenReturn(true);
 
         Marker makerlow = Mockito.mock(Marker.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(makerlow.getBound()).thenReturn(Bound.ABOVE);
         Mockito.when(makerlow.isLowerUnbounded()).thenReturn(true);
+        Mockito.when(makerlow.isNullValue()).thenReturn(true);
+
         Marker makerhigh = Mockito.mock(Marker.class, Mockito.RETURNS_DEEP_STUBS);
+        Mockito.when(makerhigh.getBound()).thenReturn(Bound.BELOW);
         Mockito.when(makerhigh.isUpperUnbounded()).thenReturn(true);
+        Mockito.when(makerhigh.isNullValue()).thenReturn(true);
 
         Range rng = Mockito.mock(Range.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(rng.getLow()).thenReturn(makerlow);
         Mockito.when(rng.getHigh()).thenReturn(makerhigh);
+        Mockito.when(rng.isSingleValue()).thenReturn(false);
         Mockito.when(valueSet.getSpan()).thenReturn(rng);
 
+        List<Range> ranges = Lists.newArrayList();
+        ranges.add(rng);
+        Mockito.when(valueSet.getRanges().getOrderedRanges()).thenReturn(ranges);
+
+        ranges = valueSet.getRanges().getOrderedRanges();
+        for (int k = 0; k < ranges.size(); k++) {
+            Range range = ranges.get(k);
+            LOGGER.info("valueSet.ranges.orderedRanges[" + k + "]="
+            + "isSingleValue=" + range.isSingleValue() 
+            + ",isAll=" + range.isAll() 
+            + ",low.bound=" + range.getLow().getBound()
+            + ",low.isLowerUnbounded=" + range.getLow().isLowerUnbounded()
+            + ",low.value=" + (range.getLow().isNullValue() ? "null" : range.getLow().getValue())
+            + ",high.bound=" + range.getHigh().getBound()
+            + ",high.isUpperUnbounded=" + range.getHigh().isUpperUnbounded()
+            + ",high.value=" + (range.getHigh().isNullValue() ? "null" : range.getHigh().getValue())
+            );
+        }
         return valueSet;
     }
 

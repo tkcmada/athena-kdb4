@@ -880,19 +880,10 @@ public class KdbQueryStringBuilder
         if (! (valueSet instanceof SortedRangeSet))
             throw new RuntimeException("unknown valueSet type for column=" + columnName + " , type=" + valueSet.getClass().getName() + " valueSet=" + valueSet);
 
-        LOGGER.info("{}:SortedRangeSet.isAll={}, isNone={}, isNullAllowed={} , isSingleValue={} , ranges.rangeCount={}", columnName, valueSet.isAll(), valueSet.isNone(), valueSet.isNullAllowed(), valueSet.isSingleValue(), valueSet.getRanges().getRangeCount());
-        if (valueSet.isNone() && valueSet.isNullAllowed()) {
-            LOGGER.info(columnName + ":null");
-            return toPredicateNull(columnName, column, type, accumulator);
-        }
-
-        if (valueSet.isNullAllowed()) {
-            LOGGER.info(columnName + ":isNullAllowed=true -> IS NULL");
-            disjuncts.add(toPredicateNull(columnName, column, type, accumulator));
-        }
+        LOGGER.info("{}:SortedRangeSet.isAll={}, isNone={}, isNullAllowed={} , isSingleValue={} , ranges.rangeCount={}", columnName, valueSet.isAll(), valueSet.isNone(), valueSet.isNullAllowed(), valueSet.isSingleValue(), valueSet.getRanges().getOrderedRanges().size());
         SortedRangeSet sortedRangeSet = (SortedRangeSet) valueSet;
         Range rangeSpan = sortedRangeSet.getSpan();
-        LOGGER.info("valueSet.span={"
+        LOGGER.info(columnName + ":valueSet.span={"
             + "isAll=" + rangeSpan.isAll()
             + ", isSingleValue=" + rangeSpan.isSingleValue()
             + ", low.isNullValue=" + rangeSpan.getLow().isNullValue()
@@ -908,6 +899,7 @@ public class KdbQueryStringBuilder
             for (Range range : valueSet.getRanges().getOrderedRanges()) {
                 LOGGER.info(columnName + ":valueSet.ranges.orderedRanges[" + k + "]="
                     + "isSingleValue=" + range.isSingleValue() 
+                    + ",isAll=" + range.isAll() 
                     + ",low.bound=" + range.getLow().getBound()
                     + ",low.isLowerUnbounded=" + range.getLow().isLowerUnbounded()
                     + ",low.value=" + (range.getLow().isNullValue() ? "null" : range.getLow().getValue())
@@ -919,17 +911,26 @@ public class KdbQueryStringBuilder
             }
         }
 
-        if (!valueSet.isNullAllowed() && rangeSpan.getLow().isLowerUnbounded() && rangeSpan.getHigh().isUpperUnbounded()) {
-            // This means NOT condition.
-            // so valueSet.ranges condition should be like this.
-            // col IS NOT NULL AND col != 'USDJPY' AND col != 'EURUSD'
-            LOGGER.info(columnName + " not condition.");
-//          return "not[" + toPredicateNull(columnName, column, type, accumulator) + "]";
+        if (valueSet.isNone() && valueSet.isNullAllowed()) {
+            LOGGER.info(columnName + ":null");
+            return toPredicateNull(columnName, column, type, accumulator);
         }
 
-        for (Range range : valueSet.getRanges().getOrderedRanges()) {
+        if (valueSet.isNullAllowed()) {
+            LOGGER.info(columnName + ":isNullAllowed=true -> IS NULL");
+            disjuncts.add(toPredicateNull(columnName, column, type, accumulator));
+        }
+
+        List<Range> ranges = valueSet.getRanges().getOrderedRanges();
+        for (int k = 0; k < ranges.size(); k++) {
+            Range range = ranges.get(k);
             if (range.isSingleValue()) {
                 singleValues.add(range.getLow().getValue());
+            }
+            else if (range.getLow().isLowerUnbounded() && range.getLow().isNullValue() && range.getLow().getBound() == Bound.ABOVE && range.getHigh().isUpperUnbounded() && range.getHigh().isNullValue() && range.getHigh().getBound() == Bound.BELOW) {
+                // col < NULL and NULL < col
+                // => col IS NOT NULL
+                disjuncts.add("not[" + toPredicateNull(columnName, column, type, accumulator) + "]");
             }
             else {
                 List<String> rangeConjuncts = new ArrayList<>();
@@ -1024,17 +1025,17 @@ public class KdbQueryStringBuilder
         List<String> disjuncts = new ArrayList<>();
         List<Object> singleValues = new ArrayList<>();
 
-        if(valueSet.isAll())
-        {
-            LOGGER.info("isAll is true.");
-            return null; //no condition
-        }
+        // if(valueSet.isAll())
+        // {
+        //     LOGGER.info(columnName + ":isAll is true.");
+        //     return null; //no condition
+        // }
 
         if (valueSet.isNone())
         {
             if (valueSet.isNullAllowed())
             {
-                LOGGER.info("isNone is true and isNullAllowed is true.");
+                LOGGER.info(columnName + ":isNone is true and isNullAllowed is true. IS NULL.");
                 return toWhereClauseNull(columnName);
             }
             else
@@ -1046,18 +1047,14 @@ public class KdbQueryStringBuilder
             disjuncts.add(toWhereClauseNull(columnName));
         }
 
-        SortedRangeSet sortedRangeSet = (SortedRangeSet) valueSet;
-        LOGGER.info("isNullAllowed={}, low.isLowerUnbounded={}, high.isUpperUnbounded={}", valueSet.isNullAllowed(),  sortedRangeSet.getSpan().getLow().isLowerUnbounded(), sortedRangeSet.getSpan().getHigh().isUpperUnbounded());
-        if (!valueSet.isNullAllowed() && sortedRangeSet.getSpan().getLow().isLowerUnbounded() && sortedRangeSet.getSpan().getHigh().isUpperUnbounded()) {
-            // not condition.            
-            LOGGER.info(columnName + " not condition which is not supported in where clause push down.");
-            // return "(not; " + toWhereClauseNull(columnName) + ")"; //This is not necessary only "NOT NULL". This may be NOT IN (...)
-            return null;
-        }
-
         for (Range range : valueSet.getRanges().getOrderedRanges()) {
             if (range.isSingleValue()) {
                 singleValues.add(range.getLow().getValue());
+            }
+            else if (range.getLow().isLowerUnbounded() && range.getLow().isNullValue() && range.getLow().getBound() == Bound.ABOVE && range.getHigh().isUpperUnbounded() && range.getHigh().isNullValue() && range.getHigh().getBound() == Bound.BELOW) {
+                // col < NULL and NULL < col
+                // => col IS NOT NULL
+                disjuncts.add("(not; " + toWhereClauseNull(columnName) + ")");
             }
             else {
                 final List<String> rangeConjuncts = new ArrayList<>();
